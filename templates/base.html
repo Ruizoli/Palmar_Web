@@ -30,7 +30,7 @@
       <a class="side-link {{ 'active' if endpoint=='productos' else '' }}" href="{{ url_for('productos') }}"><i class="fa-solid fa-toolbox"></i><span>Productos</span></a>
       <a class="side-link {{ 'active' if endpoint=='ventas' else '' }}" href="{{ url_for('ventas') }}"><i class="fa-solid fa-cash-register"></i><span>Ventas</span></a>
       {% if rol_actual == 'Administrador' %}
-      <a class="side-link {{ 'active' if endpoint=='orden_compra' else '' }}" href="{{ url_for('orden_compra') }}"><i class="fa-solid fa-cube"></i><span>Orden Compra</span></a>      <a class="side-link {{ 'active' if endpoint=='gestion_ordenes' else '' }}" href="{{ url_for('gestion_ordenes') }}"><i class="fa-solid fa-clipboard-list"></i><span>Gestión Órdenes</span></a>
+      <a class="side-link {{ 'active' if endpoint=='orden_compra' else '' }}" href="{{ url_for('orden_compra') }}"><i class="fa-solid fa-cube"></i><span>Orden Compra</span></a>      <a class="side-link {{ 'active' if endpoint=='gestion_ordenes' else '' }}" href="{{ url_for('orden_compra') }}"><i class="fa-solid fa-clipboard-list"></i><span>Gestión Órdenes</span></a>
       {% endif %}
       <a class="side-link logout" id="btnLogout" href="{{ url_for('logout') }}">
           <i class="fa-solid fa-xmark"></i>
