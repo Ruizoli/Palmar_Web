@@ -637,6 +637,32 @@ def factura_pdf(venta_id):
     c.save()
     return send_file(path, as_attachment=False)
 
+@app.route("/gestion-ordenes")
+@login_required
+@admin_required
+def gestion_ordenes():
+    q = request.args.get("q", "").strip()
+    if q:
+        like = f"%{q}%"
+        ordenes = fetch_all("""
+            SELECT oc.id, oc.po, COALESCE(ir.ir, '') AS ir, oc.proveedor, oc.fecha, oc.estado, oc.memo
+            FROM orden_compra oc
+            LEFT JOIN ingreso_recepcion ir ON ir.po = oc.po
+            WHERE oc.po LIKE ? OR oc.proveedor LIKE ? OR ir.ir LIKE ?
+            ORDER BY oc.id DESC
+        """, (like, like, like))
+    else:
+        ordenes = fetch_all("""
+            SELECT oc.id, oc.po, COALESCE(ir.ir, '') AS ir, oc.proveedor, oc.fecha, oc.estado, oc.memo
+            FROM orden_compra oc
+            LEFT JOIN ingreso_recepcion ir ON ir.po = oc.po
+            ORDER BY oc.id DESC
+        """)
+    detalles = {}
+    for o in ordenes:
+        detalles[o["po"]] = fetch_all("SELECT producto, cantidad, precio, subtotal FROM orden_compra_detalle WHERE po=?", (o["po"],))
+    return render_template("gestion_ordenes.html", ordenes=ordenes, detalles=detalles, q=q)
+
 @app.route("/orden-compra", methods=["GET", "POST"])
 @login_required
 @admin_required
@@ -705,7 +731,6 @@ def orden_compra():
         productos=productos,
         fecha_hoy=datetime.now().strftime("%Y-%m-%d")
     )
-
 
 @app.route("/gestion-ordenes/<po>/imprimir")
 @login_required
