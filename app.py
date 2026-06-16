@@ -637,31 +637,74 @@ def factura_pdf(venta_id):
     c.save()
     return send_file(path, as_attachment=False)
 
-@app.route("/gestion-ordenes")
+@app.route("/orden-compra", methods=["GET", "POST"])
 @login_required
 @admin_required
-def gestion_ordenes():
-    q = request.args.get("q", "").strip()
-    if q:
-        like = f"%{q}%"
-        ordenes = fetch_all("""
-            SELECT oc.id, oc.po, COALESCE(ir.ir, '') AS ir, oc.proveedor, oc.fecha, oc.estado, oc.memo
-            FROM orden_compra oc
-            LEFT JOIN ingreso_recepcion ir ON ir.po = oc.po
-            WHERE oc.po LIKE ? OR oc.proveedor LIKE ? OR ir.ir LIKE ?
-            ORDER BY oc.id DESC
-        """, (like, like, like))
-    else:
-        ordenes = fetch_all("""
-            SELECT oc.id, oc.po, COALESCE(ir.ir, '') AS ir, oc.proveedor, oc.fecha, oc.estado, oc.memo
-            FROM orden_compra oc
-            LEFT JOIN ingreso_recepcion ir ON ir.po = oc.po
-            ORDER BY oc.id DESC
-        """)
-    detalles = {}
-    for o in ordenes:
-        detalles[o["po"]] = fetch_all("SELECT producto, cantidad, precio, subtotal FROM orden_compra_detalle WHERE po=?", (o["po"],))
-    return render_template("gestion_ordenes.html", ordenes=ordenes, detalles=detalles, q=q)
+def orden_compra():
+    productos = fetch_all("""
+        SELECT id, nombre, stock
+        FROM productos
+        ORDER BY nombre
+    """)
+
+    if request.method == "POST":
+        fecha = request.form.get("fecha")
+        proveedor = request.form.get("proveedor", "").strip()
+        detalle_json = request.form.get("detalle_json", "[]")
+        memo = request.form.get("memo", "")
+
+        try:
+            detalle = json.loads(detalle_json)
+        except Exception:
+            detalle = []
+
+        if not proveedor:
+            flash("Ingrese el proveedor", "warning")
+            return redirect(url_for("orden_compra"))
+
+        if not detalle:
+            flash("Agregue al menos un producto", "warning")
+            return redirect(url_for("orden_compra"))
+
+        nuevo_id = int(execute_scalar("SELECT COALESCE(MAX(id),0)+1 FROM orden_compra") or 1)
+        po = f"PO-PALMAR-{nuevo_id:04d}"
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("""
+                INSERT INTO orden_compra(po, fecha, proveedor, estado, memo)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (po, fecha, proveedor, "Pendiente", memo))
+
+            for item in detalle:
+                producto = item.get("producto")
+                cantidad = int(item.get("cantidad", 0))
+                precio = float(item.get("precio", 0))
+                subtotal = float(item.get("subtotal", cantidad * precio))
+
+                cursor.execute("""
+                    INSERT INTO orden_compra_detalle(po, producto, cantidad, precio, subtotal)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (po, producto, cantidad, precio, subtotal))
+
+            conn.commit()
+            flash(f"Orden {po} guardada correctamente", "success")
+            return redirect(url_for("gestion_ordenes"))
+
+        except Exception as e:
+            conn.rollback()
+            flash(str(e), "danger")
+
+        finally:
+            conn.close()
+
+    return render_template(
+        "orden_compra.html",
+        productos=productos,
+        fecha_hoy=datetime.now().strftime("%Y-%m-%d")
+    )
 
 
 @app.route("/gestion-ordenes/<po>/imprimir")

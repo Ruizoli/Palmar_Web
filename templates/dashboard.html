@@ -141,7 +141,7 @@
           </td>
 
           <td>
-            {{ a.fecha.strftime('%Y-%m-%d') if a.fecha else a.fecha }}
+            {{ a.fecha if a.fecha else '' }}
           </td>
 
           <td>
