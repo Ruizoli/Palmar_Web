@@ -34,10 +34,12 @@
         <span>Dashboard</span>
       </a>
 
+      {% if rol_actual in ['Administrador', 'Vendedor'] %}
       <a class="side-link {{ 'active' if endpoint=='clientes' else '' }}" href="{{ url_for('clientes') }}">
         <i class="fa-solid fa-user-group"></i>
         <span>Clientes</span>
       </a>
+      {% endif %}
 
       {% if rol_actual == 'Administrador' %}
       <a class="side-link {{ 'active' if endpoint=='categorias' else '' }}" href="{{ url_for('categorias') }}">
@@ -56,10 +58,12 @@
         <span>Productos</span>
       </a>
 
+      {% if rol_actual in ['Administrador', 'Vendedor'] %}
       <a class="side-link {{ 'active' if endpoint=='ventas' else '' }}" href="{{ url_for('ventas') }}">
         <i class="fa-solid fa-cash-register"></i>
         <span>Ventas</span>
       </a>
+      {% endif %}
 
       {% if rol_actual == 'Administrador' %}
       <a class="side-link {{ 'active' if endpoint=='orden_compra' else '' }}" href="{{ url_for('orden_compra') }}">

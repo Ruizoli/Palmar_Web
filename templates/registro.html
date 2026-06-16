@@ -240,14 +240,16 @@ body{
                 >
             </div>
 
+            <input type="hidden" name="rol" value="Cliente">
+
             <div class="mb-4">
-                <label class="form-label">Rol</label>
-                <select
-                    name="rol"
-                    class="form-select"
+                <label class="form-label">Tipo de cuenta</label>
+                <input
+                    type="text"
+                    class="form-control"
+                    value="Cliente"
+                    readonly
                 >
-                    <option value="Vendedor">Vendedor</option>
-                </select>
             </div>
 
             <button

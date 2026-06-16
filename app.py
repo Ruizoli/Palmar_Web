@@ -68,7 +68,7 @@ def registro():
         password = request.form.get("password", "").strip()
         confirmar = request.form.get("confirmar", "").strip()
         clave = request.form.get("clave", "").strip()
-        rol = request.form.get("rol", "Cliente").strip() or "Cliente"
+        rol = "Cliente"
 
         if not usuario or not password or not confirmar:
             flash("Por favor, completa todos los campos", "danger")
@@ -82,8 +82,8 @@ def registro():
         if clave != "1234":
             flash("La clave de registro es incorrecta", "danger")
             return render_template("registro.html")
-        if rol not in ("Cliente", "Vendedor"):
-            rol = "Cliente"
+        #if rol not in ("Cliente", "Vendedor"):
+            #rol = "Cliente"
 
         existe = fetch_one("SELECT id FROM usuarios WHERE usuario=?", (usuario,))
         if existe:
