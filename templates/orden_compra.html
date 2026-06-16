@@ -1,0 +1,358 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h2 class="page-title">NUEVA ORDEN DE COMPRA</h2>
+
+<form method="post" id="ordenForm">
+
+  <div class="row g-3">
+
+    <div class="col-xl-9">
+
+      <div class="form-card mb-3">
+        <h5 class="section-title">Datos de la Orden</h5>
+
+        <div class="row g-3">
+
+          <div class="col-md-3">
+            <label>Número PO</label>
+            <input class="form-control" value="Se genera al guardar" readonly>
+          </div>
+
+          <div class="col-md-3">
+            <label>Fecha</label>
+            <input class="form-control" name="fecha" value="{{ fecha_hoy }}">
+          </div>
+
+          <div class="col-md-6">
+            <label>Proveedor</label>
+            <input type="text"
+                   class="form-control"
+                   name="proveedor"
+                   list="lista_proveedores"
+                   placeholder="Escriba o seleccione proveedor"
+                   required>
+
+            <datalist id="lista_proveedores">
+              <option value="Ferretería Central">
+              <option value="Distribuidora Norte">
+              <option value="Materiales Managua">
+              <option value="Proveedor Industrial">
+              <option value="SINSA Rivas">
+              <option value="Casa McGregor">
+            </datalist>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="form-card mb-3">
+        <h5 class="section-title">Agregar Producto</h5>
+
+        <div class="row g-3 align-items-end">
+
+          <div class="col-md-5 position-relative">
+            <label>Producto</label>
+
+            <input type="text"
+                   class="form-control"
+                   id="buscarProductoPO"
+                   placeholder="Buscar producto..."
+                   autocomplete="off">
+
+            <input type="hidden" id="producto_po_tmp">
+
+            <div id="listaProductosPO"
+                 class="list-group position-absolute w-100"
+                 style="z-index:9999; max-height:230px; overflow-y:auto; display:none;">
+
+              {% for p in productos %}
+              <button type="button"
+                      class="list-group-item list-group-item-action producto-po-item"
+                      data-id="{{ p.id }}"
+                      data-nombre="{{ p.nombre }}"
+                      data-stock="{{ p.stock }}">
+                {{ p.nombre|upper }} | Stock: {{ p.stock }}
+              </button>
+              {% endfor %}
+
+            </div>
+          </div>
+
+          <div class="col-md-2">
+            <label>Cantidad</label>
+            <input class="form-control" id="cantidad_po_tmp" type="number" min="1">
+          </div>
+
+          <div class="col-md-2">
+            <label>Precio Compra</label>
+            <input class="form-control" id="precio_po_tmp" type="number" step="0.01">
+          </div>
+
+          <div class="col-md-3">
+            <button type="button"
+                    class="btn btn-primary w-100"
+                    id="agregarPOItem">
+              Agregar Producto
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="form-card">
+        <div class="table-responsive">
+          <table class="table table-bordered align-middle" id="tablaPO">
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Cantidad</th>
+                <th>Precio</th>
+                <th>Subtotal</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="col-xl-3">
+
+      <div class="form-card resumen-box mb-3">
+        <h5 class="section-title">Resumen</h5>
+
+        <p>Productos: <strong id="poProductos">0</strong></p>
+        <p>Unidades: <strong id="poUnidades">0</strong></p>
+
+        <h4>Total: <span id="poTotal">C$0.00</span></h4>
+      </div>
+
+      <div class="d-grid gap-2">
+        <button type="button" class="btn btn-primary" id="editarPOItem">
+          Editar Producto
+        </button>
+
+        <button type="button" class="btn btn-danger" id="eliminarPOItem">
+          Eliminar Producto
+        </button>
+
+        <button type="submit" class="btn btn-success">
+          Guardar Orden
+        </button>
+      </div>
+
+    </div>
+
+  </div>
+
+  <input type="hidden" name="detalle_json" id="detalle_po_json">
+  <input type="hidden" name="total" id="total_po_input">
+
+</form>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+  const buscarProducto = document.getElementById("buscarProductoPO");
+  const listaProductos = document.getElementById("listaProductosPO");
+  const productoTmp = document.getElementById("producto_po_tmp");
+  const cantidadTmp = document.getElementById("cantidad_po_tmp");
+  const precioTmp = document.getElementById("precio_po_tmp");
+
+  const agregarBtn = document.getElementById("agregarPOItem");
+  const editarBtn = document.getElementById("editarPOItem");
+  const eliminarBtn = document.getElementById("eliminarPOItem");
+
+  const tablaBody = document.querySelector("#tablaPO tbody");
+  const ordenForm = document.getElementById("ordenForm");
+
+  const poProductos = document.getElementById("poProductos");
+  const poUnidades = document.getElementById("poUnidades");
+  const poTotal = document.getElementById("poTotal");
+
+  const detalleJson = document.getElementById("detalle_po_json");
+  const totalInput = document.getElementById("total_po_input");
+
+  const productos = document.querySelectorAll(".producto-po-item");
+
+  let detallePO = [];
+  let filaSeleccionada = null;
+
+  buscarProducto.addEventListener("input", function () {
+    const texto = buscarProducto.value.toLowerCase().trim();
+    let encontrados = 0;
+
+    productoTmp.value = "";
+
+    productos.forEach(item => {
+      const nombre = item.dataset.nombre.toLowerCase();
+
+      if (nombre.includes(texto) && texto !== "") {
+        item.style.display = "block";
+        encontrados++;
+      } else {
+        item.style.display = "none";
+      }
+    });
+
+    listaProductos.style.display = encontrados > 0 ? "block" : "none";
+  });
+
+  productos.forEach(item => {
+    item.addEventListener("click", function () {
+      buscarProducto.value = item.dataset.nombre.toUpperCase();
+      productoTmp.value = item.dataset.nombre;
+      listaProductos.style.display = "none";
+    });
+  });
+
+  document.addEventListener("click", function (e) {
+    if (!buscarProducto.contains(e.target) && !listaProductos.contains(e.target)) {
+      listaProductos.style.display = "none";
+    }
+  });
+
+  agregarBtn.addEventListener("click", function () {
+    const producto = productoTmp.value;
+    const cantidad = parseInt(cantidadTmp.value);
+    const precio = parseFloat(precioTmp.value);
+
+    if (!producto) {
+      alert("Buscá y seleccioná un producto.");
+      return;
+    }
+
+    if (!cantidad || cantidad <= 0) {
+      alert("Ingresá una cantidad válida.");
+      return;
+    }
+
+    if (!precio || precio <= 0) {
+      alert("Ingresá un precio válido.");
+      return;
+    }
+
+    const subtotal = cantidad * precio;
+
+    detallePO.push({
+      producto: producto,
+      cantidad: cantidad,
+      precio: precio,
+      subtotal: subtotal
+    });
+
+    renderTabla();
+    limpiarProducto();
+  });
+
+  function renderTabla() {
+    tablaBody.innerHTML = "";
+
+    detallePO.forEach((item, index) => {
+      const fila = document.createElement("tr");
+
+      fila.innerHTML = `
+        <td>${item.producto}</td>
+        <td>${item.cantidad}</td>
+        <td>C$${item.precio.toFixed(2)}</td>
+        <td>C$${item.subtotal.toFixed(2)}</td>
+        <td>
+          <button type="button" class="btn btn-sm btn-danger eliminar-fila" data-index="${index}">
+            X
+          </button>
+        </td>
+      `;
+
+      fila.addEventListener("click", function () {
+        document.querySelectorAll("#tablaPO tbody tr").forEach(tr => {
+          tr.classList.remove("table-warning");
+        });
+
+        fila.classList.add("table-warning");
+        filaSeleccionada = index;
+      });
+
+      tablaBody.appendChild(fila);
+    });
+
+    document.querySelectorAll(".eliminar-fila").forEach(btn => {
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        detallePO.splice(this.dataset.index, 1);
+        filaSeleccionada = null;
+        renderTabla();
+      });
+    });
+
+    calcularTotales();
+  }
+
+  editarBtn.addEventListener("click", function () {
+    if (filaSeleccionada === null) {
+      alert("Seleccioná un producto de la tabla.");
+      return;
+    }
+
+    const item = detallePO[filaSeleccionada];
+
+    buscarProducto.value = item.producto;
+    productoTmp.value = item.producto;
+    cantidadTmp.value = item.cantidad;
+    precioTmp.value = item.precio;
+
+    detallePO.splice(filaSeleccionada, 1);
+    filaSeleccionada = null;
+
+    renderTabla();
+  });
+
+  eliminarBtn.addEventListener("click", function () {
+    if (filaSeleccionada === null) {
+      alert("Seleccioná un producto de la tabla.");
+      return;
+    }
+
+    detallePO.splice(filaSeleccionada, 1);
+    filaSeleccionada = null;
+
+    renderTabla();
+  });
+
+  function calcularTotales() {
+    let productos = detallePO.length;
+    let unidades = detallePO.reduce((acc, item) => acc + item.cantidad, 0);
+    let total = detallePO.reduce((acc, item) => acc + item.subtotal, 0);
+
+    poProductos.textContent = productos;
+    poUnidades.textContent = unidades;
+    poTotal.textContent = "C$" + total.toFixed(2);
+
+    detalleJson.value = JSON.stringify(detallePO);
+    totalInput.value = total.toFixed(2);
+  }
+
+  function limpiarProducto() {
+    buscarProducto.value = "";
+    productoTmp.value = "";
+    cantidadTmp.value = "";
+    precioTmp.value = "";
+    listaProductos.style.display = "none";
+  }
+
+  ordenForm.addEventListener("submit", function (e) {
+    if (detallePO.length === 0) {
+      e.preventDefault();
+      alert("Agregá al menos un producto antes de guardar la orden.");
+      return;
+    }
+
+    detalleJson.value = JSON.stringify(detallePO);
+  });
+
+});
+</script>
+
+{% endblock %}

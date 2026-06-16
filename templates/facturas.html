@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h2 class="page-title">Facturas Generadas</h2>
+
+<div class="card p-3 table-responsive">
+    <table class="table align-middle">
+        <thead>
+            <tr>
+                <th>Factura</th>
+                <th>Fecha</th>
+                <th>Total</th>
+                <th>Acción</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for v in ventas %}
+            <tr>
+                <td>FAC-{{ "%04d"|format(v.id) }}</td>
+                <td>{{ v.fecha }}</td>
+                <td>C${{ "%.2f"|format(v.total) }}</td>
+                <td>
+                    <a class="btn btn-primary btn-sm" target="_blank" href="{{ url_for('factura_pdf', venta_id=v.id) }}">
+                        🖨 Imprimir
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

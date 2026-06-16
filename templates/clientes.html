@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h2 class="fw-bold">Clientes</h2>
+
+<div class="card p-3 mb-3">
+    <h5 class="fw-bold mb-3">Herramientas rápidas</h5>
+
+    <div class="row g-2">
+        <div class="col-md-6">
+            <a href="{{ url_for('facturas') }}" class="btn btn-warning w-100">
+                🧾 Buscar / Imprimir Facturas
+            </a>
+        </div>
+
+        <div class="col-md-6">
+            <a href="{{ url_for('descargar_inventario_excel') }}" class="btn btn-success w-100">
+                📥 Descargar Inventario en Excel
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="card p-3 mb-3">
+    <form method="post" class="row g-2">
+        <div class="col-md-3">
+            <input class="form-control" name="nombre" placeholder="Nombre" required>
+        </div>
+
+        <div class="col-md-3">
+            <input class="form-control" name="cedula" placeholder="Cédula">
+        </div>
+
+        <div class="col-md-2">
+            <input class="form-control" name="telefono" placeholder="Teléfono">
+        </div>
+
+        <div class="col-md-3">
+            <input class="form-control" name="correo" placeholder="Correo">
+        </div>
+
+        <div class="col-md-1">
+            <button class="btn btn-warning w-100">Guardar</button>
+        </div>
+    </form>
+</div>
+
+<div class="mb-3">
+    <input class="form-control"
+           id="buscarCliente"
+           placeholder="Buscar cliente..."
+           autocomplete="off">
+</div>
+
+<div class="card p-3 table-responsive">
+    <table class="table align-middle" id="tablaClientes">
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Cédula</th>
+                <th>Teléfono</th>
+                <th>Correo</th>
+                <th></th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for c in clientes %}
+            <tr class="fila-cliente"
+                data-busqueda="{{ c.nombre }} {{ c.cedula or '' }} {{ c.telefono or '' }} {{ c.correo or '' }}">
+                
+                <form method="post" action="{{ url_for('editar_cliente', id=c.id) }}">
+                    <td>
+                        <input class="form-control" name="nombre" value="{{ c.nombre }}">
+                    </td>
+
+                    <td>
+                        <input class="form-control" name="cedula" value="{{ c.cedula or '' }}">
+                    </td>
+
+                    <td>
+                        <input class="form-control" name="telefono" value="{{ c.telefono or '' }}">
+                    </td>
+
+                    <td>
+                        <input class="form-control" name="correo" value="{{ c.correo or '' }}">
+                    </td>
+
+                    <td class="d-flex gap-1">
+                        <button class="btn btn-sm btn-success">
+                            Actualizar
+                        </button>
+                </form>
+
+                <form method="post" action="{{ url_for('eliminar_cliente', id=c.id) }}">
+                    <button class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar?')">
+                        Eliminar
+                    </button>
+                </form>
+                    </td>
+            </tr>
+            {% endfor %}
+
+            <tr id="sinClientes" style="display:none;">
+                <td colspan="5" class="text-center fw-bold text-muted">
+                    No se encontraron clientes.
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const buscarCliente = document.getElementById("buscarCliente");
+    const filas = document.querySelectorAll(".fila-cliente");
+    const sinClientes = document.getElementById("sinClientes");
+
+    buscarCliente.addEventListener("input", function () {
+        const texto = buscarCliente.value.toLowerCase().trim();
+        let visibles = 0;
+
+        filas.forEach(fila => {
+            const contenido = fila.dataset.busqueda.toLowerCase();
+
+            if (contenido.includes(texto)) {
+                fila.style.display = "";
+                visibles++;
+            } else {
+                fila.style.display = "none";
+            }
+        });
+
+        sinClientes.style.display = visibles === 0 ? "" : "none";
+    });
+
+});
+</script>
+
+{% endblock %}

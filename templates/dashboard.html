@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h1 class="page-title dash-title">DASHBOARD</h1>
+
+<div class="row g-4 mb-4">
+
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="kpi-card">
+      <div class="kpi-label">Inventario</div>
+      <div class="kpi-value">{{ datos.productos }}</div>
+      <div class="kpi-sub text-purple">Productos registrados</div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="kpi-card">
+      <div class="kpi-label">Ventas Mes</div>
+      <div class="kpi-value">C${{ '%.2f'|format(datos.ingresos_mes) }}</div>
+      <div class="kpi-sub text-green">{{ datos.ventas_mes }} ventas</div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="kpi-card">
+      <div class="kpi-label">Clientes</div>
+      <div class="kpi-value">{{ datos.clientes }}</div>
+      <div class="kpi-sub text-orange">Clientes registrados</div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="kpi-card">
+      <div class="kpi-label">PO Recibidas</div>
+      <div class="kpi-value">{{ datos.po_recibidas or 0 }}</div>
+      <div class="kpi-sub text-pink">
+        C${{ '%.2f'|format(datos.total_po_recibidas or 0) }}
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="row g-3 align-items-start">
+
+  <div class="col-xl-9 col-lg-8">
+    <div class="panel-card mb-4">
+      <h5>Ventas de los últimos 7 días</h5>
+
+      <div class="panel-body">
+        <div class="chart-box">
+          <canvas id="ventasChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-lg-4">
+
+    <div class="side-widget mb-3">
+      <h5>Productos más vendidos</h5>
+
+      {% for p in datos.mas_vendidos %}
+      <div class="sold-row">
+        <span>{{ p.nombre }}</span>
+        <span>{{ p.unidades }} unidades</span>
+      </div>
+      {% else %}
+      <div class="text-muted">Sin ventas registradas.</div>
+      {% endfor %}
+    </div>
+
+    <div class="side-widget">
+      <h5>Órdenes de compra</h5>
+
+      <div class="order-row">
+        <span>Pendiente:</span>
+        <span class="text-orange">{{ datos.po_pendientes or 0 }}</span>
+      </div>
+
+      <div class="order-row">
+        <span>Recibida:</span>
+        <span class="text-green">{{ datos.po_recibidas or 0 }}</span>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<div class="data-card mt-2 p-3">
+  <h5>Ventas por día</h5>
+
+  <div class="table-responsive mb-4">
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Cantidad de ventas</th>
+          <th>Total vendido</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {% for v in datos.ventas_dias %}
+        <tr>
+          <td>{{ v.dia }}</td>
+          <td>{{ v.cantidad }}</td>
+          <td>C${{ '%.2f'|format(v.total or 0) }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="3">No hay ventas registradas en los últimos días.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <h5>Actividad reciente</h5>
+
+  <div class="table-responsive">
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th>Tipo</th>
+          <th>Número</th>
+          <th>Fecha</th>
+          <th>Total</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {% for a in datos.actividad %}
+        <tr>
+          <td>{{ a.tipo }}</td>
+
+          <td>
+            <strong>{{ a.numero }}</strong>
+          </td>
+
+          <td>
+            {{ a.fecha.strftime('%Y-%m-%d') if a.fecha else a.fecha }}
+          </td>
+
+          <td>
+            C${{ '%.2f'|format(a.total or 0) }}
+          </td>
+
+          <td>
+            <span class="badge-soft">
+              {{ a.estado }}
+            </span>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="5">No hay actividad reciente.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+window.dashboardLabels = {{ datos.chart_labels|tojson }};
+window.dashboardValues = {{ datos.chart_values|tojson }};
+</script>
+
+{% endblock %}

@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+facturas_pdf/
+ordenes_pdf/
+.env

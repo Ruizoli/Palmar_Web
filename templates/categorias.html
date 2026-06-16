@@ -1,0 +1,295 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<style>
+  .local-title {
+    text-align: center;
+    font-size: 38px;
+    font-weight: 900;
+    color: #d4af37;
+    background: white;
+    padding: 14px;
+    margin-bottom: 22px;
+    border-left: 8px solid #d4af37;
+    border-right: 8px solid #d4af37;
+  }
+
+  .local-category-box,
+  .local-form-frame,
+  .local-table-card {
+    background: #ffffff;
+    border: 1px solid #d8d8d8;
+    padding: 18px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+  }
+
+  .local-frame-title {
+    font-size: 22px;
+    font-weight: 800;
+    color: #111;
+    margin-bottom: 18px;
+  }
+
+  label {
+    font-weight: 700;
+    color: #111;
+  }
+
+  .local-purple-btn {
+    background: linear-gradient(135deg, #d4af37, #f1c75b);
+    border: none;
+    color: #111 !important;
+    font-weight: 800;
+  }
+
+  .local-blue-btn {
+    background: #222;
+    border: none;
+    color: #d4af37 !important;
+    font-weight: 800;
+  }
+
+  .local-green-btn {
+    background: #198754;
+    border: none;
+    color: white !important;
+    font-weight: 800;
+  }
+
+  .local-yellow-btn {
+    background: #d4af37;
+    border: none;
+    color: #111 !important;
+    font-weight: 800;
+  }
+
+  .local-red-btn {
+    background: #dc3545;
+    border: none;
+    color: white !important;
+    font-weight: 800;
+  }
+
+  .local-search-bar {
+    background: #fff6dc;
+    border-left: 8px solid #d4af37;
+    padding: 14px;
+    margin-bottom: 14px;
+    box-shadow: 0 2px 7px rgba(0,0,0,0.07);
+  }
+
+  .local-search-input {
+    max-width: 420px;
+  }
+
+  .local-table thead th {
+    background: #151515 !important;
+    color: #f1c75b !important;
+    border-color: #333 !important;
+    font-weight: 800;
+  }
+
+  .local-table tbody tr:hover {
+    background: #fff8e1;
+  }
+
+  .form-control:focus,
+  .form-select:focus {
+    border-color: #d4af37;
+    box-shadow: 0 0 0 0.20rem rgba(212,175,55,0.25);
+  }
+</style>
+
+<h2 class="local-title">Catálogo de Productos</h2>
+
+<div class="local-category-box mb-3">
+  <form method="post" class="row g-2 align-items-end">
+    <input type="hidden" name="accion" value="categoria">
+
+    <div class="col-md-4">
+      <label>Nueva categoría:</label>
+      <input class="form-control" name="nombre_categoria" required>
+    </div>
+
+    <div class="col-md-3">
+      <button class="btn local-purple-btn w-100">
+        ➕ Agregar Categoría
+      </button>
+    </div>
+  </form>
+</div>
+
+<div class="local-form-frame mb-3">
+  <div class="local-frame-title">Crear Item</div>
+
+  <form method="post" class="row g-2 align-items-end">
+    <input type="hidden" name="accion" value="producto">
+
+    <div class="col-md-3">
+      <label>Nombre:</label>
+      <input class="form-control" name="nombre" required>
+    </div>
+
+    <div class="col-md-3">
+      <label>Categoría:</label>
+      <select class="form-select" name="categoria_id" required>
+        <option value="">Seleccione...</option>
+        {% for c in categorias %}
+        <option value="{{ c.id }}">{{ c.nombre|upper }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    
+    <div class="col-md-2">
+      <label>Precio:</label>
+      <input class="form-control" type="number" step="0.01" name="precio" required>
+    </div>
+
+    <div class="col-md-2">
+      <label>Stock:</label>
+      <input class="form-control" type="number" name="stock" required>
+    </div>
+
+    <div class="col-md-2 d-grid gap-1">
+      <a class="btn local-blue-btn" href="{{ url_for('categorias') }}">➕ Nuevo</a>
+      <button class="btn local-green-btn">💾 Guardar</button>
+    </div>
+  </form>
+</div>
+
+<div class="local-search-bar">
+  <div class="d-flex align-items-center gap-2 flex-wrap">
+    <label>🔍 Buscar producto o categoría:</label>
+
+    <input
+      class="form-control local-search-input"
+      id="buscarCategoriaProducto"
+      placeholder="Buscar..."
+      autocomplete="off"
+    >
+
+    <button
+      type="button"
+      class="btn btn-light border"
+      id="limpiarBusqueda">
+      Limpiar
+    </button>
+  </div>
+</div>
+
+<div class="local-table-card table-responsive">
+  <table class="table local-table align-middle" id="tablaCategoriasProductos">
+    <thead>
+      <tr>
+        <th style="width:35%">Producto</th>
+        <th style="width:25%">Categoría</th>
+        <th style="width:15%">Precio</th>
+        <th style="width:10%">Stock</th>
+        <th style="width:15%">Acciones</th>
+      </tr>
+    </thead>
+
+    <tbody>
+
+      {% for p in productos %}
+
+      <tr class="fila-producto"
+          data-busqueda="{{ p.nombre }} {{ p.categoria }} {{ p.precio }} {{ p.stock }}">
+
+        <form method="post" action="{{ url_for('editar_producto', id=p.id) }}">
+          <input type="hidden" name="next" value="{{ url_for('categorias') }}">
+
+          <td>
+            <input class="form-control" name="nombre" value="{{ p.nombre }}">
+          </td>
+
+          <td>
+            <select class="form-select" name="categoria_id">
+              {% for c in categorias %}
+              <option
+                value="{{ c.id }}"
+                {% if c.id == p.categoria_id %}selected{% endif %}>
+                {{ c.nombre|upper }}
+              </option>
+              {% endfor %}
+            </select>
+          </td>
+
+          <td>
+            <input class="form-control" type="number" step="0.01" name="precio" value="{{ p.precio }}">
+          </td>
+
+          <td>
+            <input class="form-control" type="number" name="stock" value="{{ p.stock }}">
+          </td>
+
+          <td>
+            <div class="d-flex gap-2">
+              <button type="submit" class="btn local-yellow-btn btn-sm flex-fill">
+                ✏️ Actualizar
+              </button>
+        </form>
+
+              <form method="post" action="{{ url_for('eliminar_producto', id=p.id) }}">
+                <input type="hidden" name="next" value="{{ url_for('categorias') }}">
+
+                <button
+                  type="submit"
+                  class="btn local-red-btn btn-sm flex-fill"
+                  onclick="return confirm('¿Está seguro de eliminar este producto?')">
+                  🗑️ Eliminar
+                </button>
+              </form>
+            </div>
+          </td>
+
+      </tr>
+
+      {% endfor %}
+
+      <tr id="sinProductos" style="display:none;">
+        <td colspan="5" class="text-center text-muted py-4 fw-bold">
+          No se encontraron productos.
+        </td>
+      </tr>
+
+    </tbody>
+  </table>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const buscador = document.getElementById("buscarCategoriaProducto");
+  const limpiar = document.getElementById("limpiarBusqueda");
+  const filas = document.querySelectorAll(".fila-producto");
+  const sinProductos = document.getElementById("sinProductos");
+
+  function filtrar() {
+    const texto = buscador.value.toLowerCase().trim();
+    let visibles = 0;
+
+    filas.forEach(fila => {
+      const contenido = fila.dataset.busqueda.toLowerCase();
+
+      if (contenido.includes(texto)) {
+        fila.style.display = "";
+        visibles++;
+      } else {
+        fila.style.display = "none";
+      }
+    });
+
+    sinProductos.style.display = visibles === 0 ? "" : "none";
+  }
+
+  buscador.addEventListener("input", filtrar);
+
+  limpiar.addEventListener("click", function () {
+    buscador.value = "";
+    filtrar();
+    buscador.focus();
+  });
+});
+</script>
+
+{% endblock %}
