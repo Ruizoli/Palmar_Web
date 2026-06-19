@@ -967,6 +967,17 @@ def recibir_orden(po):
 
     return redirect(url_for("gestion_ordenes"))
 
+@app.route("/facturas")
+@login_required
+def facturas():
+    ventas = fetch_all("""
+        SELECT id, fecha, total
+        FROM ventas
+        ORDER BY id DESC
+    """)
+
+    return render_template("facturas.html", ventas=ventas)
+
 @app.route("/inventario/excel")
 @login_required
 def descargar_inventario_excel():
