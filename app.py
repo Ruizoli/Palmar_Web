@@ -896,41 +896,76 @@ def orden_pdf(po):
     c.save()
     return send_file(path, as_attachment=False)
 
-@app.route("/gestion-ordenes/<po>/recibir", methods=["POST"])
+@app.route("/gestion-ordenes/<path:po>/recibir", methods=["POST"])
 @login_required
 @admin_required
 def recibir_orden(po):
-    recibido_por = request.form.get("recibido_por", session.get("usuario"))
-    numero_factura = request.form.get("numero_factura")
-    memo = request.form.get("memo")
-    ir = f"IR-PALMAR-{int(execute_scalar('SELECT COALESCE(MAX(id),0)+1 FROM ingreso_recepcion') or 1):04d}"
-    detalles = fetch_all("SELECT producto, cantidad FROM orden_compra_detalle WHERE po=?", (po,))
+    recibido_por = request.form.get("recibido_por") or session.get("usuario") or "Administrador"
+    numero_factura = request.form.get("numero_factura") or ""
+    memo = request.form.get("memo") or ""
+
     conn = get_connection()
     cursor = conn.cursor()
+
     try:
-        cursor.execute("INSERT INTO ingreso_recepcion(ir, po, recibido_por, numero_factura, memo) VALUES (%s, %s, %s, %s, %s)", (ir, po, recibido_por, numero_factura, memo))
-        cursor.execute("UPDATE orden_compra SET estado='Recibida' WHERE po=%s", (po,))
+        cursor.execute("SELECT po, estado FROM orden_compra WHERE po=%s", (po,))
+        orden = cursor.fetchone()
+
+        if not orden:
+            flash("La orden no existe", "danger")
+            return redirect(url_for("gestion_ordenes"))
+
+        if orden["estado"] == "Recibida":
+            flash(f"La orden {po} ya fue recibida anteriormente", "warning")
+            return redirect(url_for("gestion_ordenes"))
+
+        cursor.execute("""
+            SELECT producto, cantidad
+            FROM orden_compra_detalle
+            WHERE po=%s
+        """, (po,))
+        detalles = cursor.fetchall()
+
+        if not detalles:
+            flash("La orden no tiene productos", "danger")
+            return redirect(url_for("gestion_ordenes"))
+
+        cursor.execute("SELECT COALESCE(MAX(id), 0) + 1 AS nuevo FROM ingreso_recepcion")
+        nuevo_ir = cursor.fetchone()["nuevo"]
+        ir = f"IR-PALMAR-{int(nuevo_ir):04d}"
+
+        cursor.execute("""
+            INSERT INTO ingreso_recepcion(ir, po, recibido_por, numero_factura, memo)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (ir, po, recibido_por, numero_factura, memo))
+
         for d in detalles:
-            cursor.execute("UPDATE productos SET stock = stock + %s WHERE nombre=%s", (d["cantidad"], d["producto"]))
+            cursor.execute("""
+                UPDATE productos
+                SET stock = stock + %s
+                WHERE UPPER(TRIM(nombre)) = UPPER(TRIM(%s))
+            """, (d["cantidad"], d["producto"]))
+
+            if cursor.rowcount == 0:
+                raise Exception(f"No se encontró el producto en inventario: {d['producto']}")
+
+        cursor.execute("""
+            UPDATE orden_compra
+            SET estado='Recibida', memo=%s
+            WHERE po=%s
+        """, (memo, po))
+
         conn.commit()
-        flash(f"Orden {po} recibida y stock actualizado", "success")
+        flash(f"Orden {po} recibida correctamente. Stock actualizado.", "success")
+
     except Exception as e:
         conn.rollback()
-        flash(str(e), "danger")
+        flash(f"Error al recibir la orden: {str(e)}", "danger")
+
     finally:
         conn.close()
+
     return redirect(url_for("gestion_ordenes"))
-
-@app.route("/facturas")
-@login_required
-def facturas():
-    ventas = fetch_all("""
-        SELECT id, fecha, total
-        FROM ventas
-        ORDER BY id DESC
-    """)
-
-    return render_template("facturas.html", ventas=ventas)
 
 @app.route("/inventario/excel")
 @login_required
