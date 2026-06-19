@@ -69,6 +69,7 @@
 
         <input type="hidden" id="producto_id_tmp">
         <input type="hidden" id="stock_tmp">
+        <input type="hidden" id="unidad_tmp">
 
         <div id="listaProductos"
              class="list-group position-absolute w-100"
@@ -80,8 +81,9 @@
                   data-id="{{ p.id }}"
                   data-nombre="{{ p.nombre }}"
                   data-precio="{{ p.precio }}"
-                  data-stock="{{ p.stock }}">
-            {{ p.nombre|upper }} | Stock: {{ p.stock }}
+                  data-stock="{{ p.stock }}"
+                  data-unidad="{{ p.unidad or 'UND' }}">
+            {{ p.nombre|upper }} | Stock: {{ p.stock }} {{ p.unidad or 'UND' }}
           </button>
           {% endfor %}
 
@@ -117,6 +119,7 @@
             <th>ID</th>
             <th>Producto</th>
             <th>Cantidad</th>
+            <th>Unidad</th>
             <th>Precio Unit.</th>
             <th>Subtotal</th>
             <th></th>
@@ -169,6 +172,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const listaProductos = document.getElementById("listaProductos");
   const productoIdTmp = document.getElementById("producto_id_tmp");
   const stockTmp = document.getElementById("stock_tmp");
+  const unidadTmp = document.getElementById("unidad_tmp");
   const cantidadTmp = document.getElementById("cantidad_tmp");
   const precioTmp = document.getElementById("precio_tmp");
   const agregarBtn = document.getElementById("agregarVentaItem");
@@ -197,12 +201,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
     productoIdTmp.value = "";
     stockTmp.value = "";
+    unidadTmp.value = "";
     precioTmp.value = "";
 
     productos.forEach(item => {
       const nombre = item.dataset.nombre.toLowerCase();
+      const unidad = (item.dataset.unidad || "UND").toLowerCase();
 
-      if (nombre.includes(texto) && texto !== "") {
+      if ((nombre.includes(texto) || unidad.includes(texto)) && texto !== "") {
         item.style.display = "block";
         encontrados++;
       } else {
@@ -215,9 +221,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
   productos.forEach(item => {
     item.addEventListener("click", function () {
-      buscarProducto.value = item.dataset.nombre.toUpperCase();
+      const unidad = item.dataset.unidad || "UND";
+
+      buscarProducto.value = item.dataset.nombre.toUpperCase() + " (" + unidad + ")";
       productoIdTmp.value = item.dataset.id;
       stockTmp.value = item.dataset.stock;
+      unidadTmp.value = unidad;
       precioTmp.value = item.dataset.precio;
       listaProductos.style.display = "none";
     });
@@ -235,6 +244,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const cantidad = parseInt(cantidadTmp.value);
     const precio = parseFloat(precioTmp.value);
     const stock = parseInt(stockTmp.value || 0);
+    const unidad = unidadTmp.value || "UND";
 
     if (!id) {
       alert("Buscá y seleccioná un producto.");
@@ -256,7 +266,7 @@ document.addEventListener("DOMContentLoaded", function () {
       .reduce((acc, item) => acc + item.cantidad, 0);
 
     if ((cantidadYaAgregada + cantidad) > stock) {
-      alert("Stock insuficiente. Disponible: " + stock);
+      alert("Stock insuficiente. Disponible: " + stock + " " + unidad);
       return;
     }
 
@@ -266,6 +276,7 @@ document.addEventListener("DOMContentLoaded", function () {
       producto_id: id,
       producto: producto,
       cantidad: cantidad,
+      unidad: unidad,
       precio: precio,
       subtotal: subtotal
     });
@@ -284,6 +295,7 @@ document.addEventListener("DOMContentLoaded", function () {
         <td>${item.producto_id}</td>
         <td>${item.producto}</td>
         <td>${item.cantidad}</td>
+        <td>${item.unidad || "UND"}</td>
         <td>C$${item.precio.toFixed(2)}</td>
         <td>C$${item.subtotal.toFixed(2)}</td>
         <td>
@@ -356,6 +368,7 @@ document.addEventListener("DOMContentLoaded", function () {
     buscarProducto.value = "";
     productoIdTmp.value = "";
     stockTmp.value = "";
+    unidadTmp.value = "";
     cantidadTmp.value = "1";
     precioTmp.value = "";
     listaProductos.style.display = "none";

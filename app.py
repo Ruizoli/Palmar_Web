@@ -247,7 +247,7 @@ def productos():
     q = request.args.get("q", "").strip()
     params = []
     sql = """
-        SELECT p.id, p.nombre, p.precio, p.stock, p.categoria_id,
+        SELECT p.id, p.nombre, p.precio, p.stock, p.unidad, p.categoria_id,
                COALESCE(c.nombre, 'Sin categoría') AS categoria,
                (p.precio * p.stock) AS invertido
         FROM productos p
@@ -286,12 +286,20 @@ def categorias():
         categoria_id = request.form.get("categoria_id")
         precio = request.form.get("precio") or 0
         stock = request.form.get("stock") or 0
+        unidad = request.form.get("unidad", "UND")
         if not nombre or not categoria_id:
             flash("Complete todos los campos del producto", "warning")
         else:
-            execute("INSERT INTO productos(nombre, categoria_id, precio, stock) VALUES (?, ?, ?, ?)", (
-                nombre, categoria_id, precio, stock
-            ))
+            execute(
+                "INSERT INTO productos(nombre, categoria_id, precio, stock, unidad) VALUES (?, ?, ?, ?, ?)",
+                (
+                    nombre,
+                    categoria_id,
+                    precio,
+                    stock,
+                    unidad
+                )
+            )
             flash("Producto guardado correctamente", "success")
         return redirect(url_for("categorias"))
 
@@ -299,7 +307,13 @@ def categorias():
     categorias = fetch_all("SELECT id, nombre FROM categorias ORDER BY nombre")
     params = []
     sql = """
-        SELECT p.id, p.nombre, p.precio, p.stock, p.categoria_id, c.nombre AS categoria
+        SELECT p.id,
+            p.nombre,
+            p.precio,
+            p.stock,
+            p.unidad,
+            p.categoria_id,
+            c.nombre AS categoria
         FROM productos p
         INNER JOIN categorias c ON p.categoria_id = c.id
     """
@@ -315,8 +329,21 @@ def categorias():
 @login_required
 @admin_required
 def editar_producto(id):
-    execute("UPDATE productos SET nombre=?, categoria_id=?, precio=?, stock=? WHERE id=?", (
-        request.form["nombre"], request.form.get("categoria_id"), request.form.get("precio") or 0, request.form.get("stock") or 0, id
+    execute("""
+        UPDATE productos
+        SET nombre=?,
+            categoria_id=?,
+            precio=?,
+            stock=?,
+            unidad=?
+        WHERE id=?
+    """, (
+        request.form["nombre"],
+        request.form.get("categoria_id"),
+        request.form.get("precio") or 0,
+        request.form.get("stock") or 0,
+        request.form.get("unidad", "UND"),
+        id
     ))
     flash("Producto actualizado correctamente", "success")
     return redirect(request.form.get("next") or url_for("categorias"))
@@ -391,7 +418,7 @@ def ventas():
                     continue
 
                 cursor.execute(
-                    "SELECT id, nombre, precio, stock FROM productos WHERE id=%s",
+                    "SELECT id, nombre, precio, stock, unidad FROM productos WHERE id=%s",
                     (producto_id,)
                 )
                 p = cursor.fetchone()
@@ -448,7 +475,7 @@ def ventas():
             conn.close()
 
     productos = fetch_all("""
-        SELECT id, nombre, precio, stock
+        SELECT id, nombre, precio, stock, unidad
         FROM productos
         WHERE stock > 0
         ORDER BY nombre
@@ -500,6 +527,7 @@ def factura_pdf(venta_id):
         SELECT 
             p.id AS producto_id,
             p.nombre,
+            p.unidad,
             d.cantidad,
             d.precio,
             d.subtotal
@@ -598,7 +626,8 @@ def factura_pdf(venta_id):
             c.drawString(105, y_linea, linea)
             y_linea -= 10
 
-        c.drawRightString(330, y, str(d["cantidad"]))
+        unidad = d["unidad"] or "UND"
+        c.drawRightString(330, y, f'{d["cantidad"]} {unidad}')
         c.drawRightString(420, y, f"C${float(d['precio']):,.2f}")
         c.drawRightString(550, y, f"C${float(d['subtotal']):,.2f}")
 
@@ -668,7 +697,7 @@ def gestion_ordenes():
 @admin_required
 def orden_compra():
     productos = fetch_all("""
-        SELECT id, nombre, stock
+        SELECT id, nombre, stock, unidad
         FROM productos
         ORDER BY nombre
     """)
@@ -746,9 +775,14 @@ def orden_pdf(po):
     """, (po,))
 
     detalles = fetch_all("""
-        SELECT producto, cantidad, precio, subtotal
-        FROM orden_compra_detalle
-        WHERE po=?
+        SELECT d.producto,
+               d.cantidad,
+               d.precio,
+               d.subtotal,
+               COALESCE(p.unidad, 'UND') AS unidad
+        FROM orden_compra_detalle d
+        LEFT JOIN productos p ON p.nombre = d.producto
+        WHERE d.po=?
     """, (po,))
 
     if not orden:
@@ -995,6 +1029,7 @@ def descargar_inventario_excel():
             COALESCE(c.nombre, 'Sin categoría') AS categoria,
             p.precio,
             p.stock,
+            p.unidad,
             (p.precio * p.stock) AS total
         FROM productos p
         LEFT JOIN categorias c
@@ -1006,7 +1041,7 @@ def descargar_inventario_excel():
     ws = wb.active
     ws.title = "Inventario"
 
-    encabezados = ["Producto", "Categoría", "Precio", "Stock", "Total"]
+    encabezados = ["Producto", "Categoría", "Precio", "Stock", "Unidad", "Total"]
     ws.append(encabezados)
 
     for cell in ws[1]:
@@ -1020,6 +1055,7 @@ def descargar_inventario_excel():
             p["categoria"],
             float(p["precio"] or 0),
             int(p["stock"] or 0),
+            p["unidad"] or "UND",
             float(p["total"] or 0)
         ])
 
@@ -1027,13 +1063,14 @@ def descargar_inventario_excel():
     ws.column_dimensions["B"].width = 25
     ws.column_dimensions["C"].width = 15
     ws.column_dimensions["D"].width = 12
-    ws.column_dimensions["E"].width = 15
+    ws.column_dimensions["E"].width = 12
+    ws.column_dimensions["F"].width = 15
 
     for row in ws.iter_rows(min_row=2, min_col=3, max_col=3):
         for cell in row:
             cell.number_format = 'C$#,##0.00'
 
-    for row in ws.iter_rows(min_row=2, min_col=5, max_col=5):
+    for row in ws.iter_rows(min_row=2, min_col=6, max_col=6):
         for cell in row:
             cell.number_format = 'C$#,##0.00'
 

@@ -71,6 +71,16 @@
 .local-table tbody tr:hover{
     background:#fff8e1;
 }
+
+.unidad-badge{
+    background:#111;
+    color:#d4af37;
+    padding:5px 10px;
+    border-radius:15px;
+    font-weight:800;
+    display:inline-block;
+    min-width:55px;
+}
 </style>
 
 <h2 class="local-title">
@@ -81,7 +91,7 @@
     <div class="d-flex align-items-center gap-2 flex-wrap">
 
         <label class="fw-bold">
-            🔍 Buscar producto o categoría:
+            🔍 Buscar producto, categoría o unidad:
         </label>
 
         <input
@@ -129,6 +139,7 @@
                 <th>Categoría</th>
                 <th class="text-end">Precio</th>
                 <th class="text-center">Stock</th>
+                <th class="text-center">Unidad</th>
                 <th class="text-end">Invertido</th>
             </tr>
         </thead>
@@ -138,7 +149,7 @@
             {% for p in productos %}
 
             <tr class="fila-producto"
-                data-busqueda="{{ p.nombre }} {{ p.categoria }}"
+                data-busqueda="{{ p.nombre }} {{ p.categoria }} {{ p.unidad or 'UND' }}"
                 data-stock="{{ p.stock or 0 }}"
                 data-invertido="{{ p.invertido or 0 }}">
 
@@ -154,6 +165,12 @@
                     {{ p.stock }}
                 </td>
 
+                <td class="text-center">
+                    <span class="unidad-badge">
+                        {{ p.unidad or 'UND' }}
+                    </span>
+                </td>
+
                 <td class="text-end">
                     C${{ "{:,.2f}".format(p.invertido or 0) }}
                 </td>
@@ -163,7 +180,7 @@
             {% endfor %}
 
             <tr id="sinProductos" style="display:none;">
-                <td colspan="5" class="text-center text-muted fw-bold">
+                <td colspan="6" class="text-center text-muted fw-bold">
                     No se encontraron productos.
                 </td>
             </tr>
