@@ -9,7 +9,6 @@
     color:#0b1d47;
     margin-bottom:35px;
 }
-
 .form-card{
     background:#fff;
     border:1px solid #ddd;
@@ -17,37 +16,18 @@
     padding:20px;
     box-shadow:0 3px 10px rgba(0,0,0,.08);
 }
-
 .section-title{
     color:#0b1d47;
     font-weight:800;
     margin-bottom:15px;
 }
-
 .table thead{
     background:#111;
 }
-
 .table thead th{
     color:#d4af37 !important;
     font-weight:800;
 }
-
-.btn-primary{
-    background:#0d6efd;
-    border:none;
-}
-
-.btn-success{
-    background:#198754;
-    border:none;
-}
-
-.btn-dark{
-    background:#212529;
-    border:none;
-}
-
 .search-box{
     background:white;
     border-radius:10px;
@@ -55,7 +35,6 @@
     margin-bottom:20px;
     box-shadow:0 2px 8px rgba(0,0,0,.08);
 }
-
 .estado-pendiente{
     background:#ffc107;
     color:#000;
@@ -63,13 +42,23 @@
     border-radius:20px;
     font-weight:bold;
 }
-
 .estado-recibida{
     background:#198754;
     color:white;
     padding:6px 12px;
     border-radius:20px;
     font-weight:bold;
+}
+.estado-cerrada{
+    background:#dc3545;
+    color:white;
+    padding:6px 12px;
+    border-radius:20px;
+    font-weight:bold;
+}
+.modal-content{
+    background:#fff !important;
+    border-radius:12px;
 }
 </style>
 
@@ -80,231 +69,269 @@
         <div class="col-md-10">
             <input class="form-control" id="buscarOrden" placeholder="Buscar por PO, IR o proveedor..." autocomplete="off">
         </div>
-
         <div class="col-md-2">
-            <button type="button" class="btn btn-secondary w-100" id="limpiarBusqueda">
-                Limpiar
-            </button>
+            <button type="button" class="btn btn-secondary w-100" id="limpiarBusqueda">Limpiar</button>
         </div>
     </div>
 </div>
 
 <div class="row g-3">
 
-    <div class="col-xl-8">
+<div class="col-xl-8">
+<div class="form-card">
 
-        <div class="form-card">
+<table class="table table-bordered align-middle" id="tablaOrdenes">
+<thead>
+<tr>
+    <th>PO</th>
+    <th>IR</th>
+    <th>Proveedor</th>
+    <th>Fecha</th>
+    <th>Estado</th>
+    <th style="width:170px">Acciones</th>
+</tr>
+</thead>
 
-            <table class="table table-bordered align-middle" id="tablaOrdenes">
+<tbody>
+{% for o in ordenes %}
 
-                <thead>
-                    <tr>
-                        <th>PO</th>
-                        <th>IR</th>
-                        <th>Proveedor</th>
-                        <th>Fecha</th>
-                        <th>Estado</th>
-                        <th style="width:150px">Acciones</th>
-                    </tr>
-                </thead>
+<tr class="fila-orden"
+    data-busqueda="{{ o.po }} {{ o.ir or '' }} {{ o.proveedor }} {{ o.fecha }} {{ o.estado }}">
 
-                <tbody>
+    <td>{{ o.po }}</td>
+    <td>{{ o.ir or '' }}</td>
+    <td>{{ o.proveedor }}</td>
+    <td>{{ o.fecha }}</td>
 
-                {% for o in ordenes %}
+    <td>
+        {% if o.estado == 'Recibida' %}
+            <span class="estado-recibida">Recibida</span>
+        {% elif o.estado == 'Cerrada' %}
+            <span class="estado-cerrada">Cerrada</span>
+        {% else %}
+            <span class="estado-pendiente">Pendiente</span>
+        {% endif %}
+    </td>
 
-                    <tr class="fila-orden"
-                        data-busqueda="{{ o.po }} {{ o.ir or '' }} {{ o.proveedor }} {{ o.fecha }} {{ o.estado }}">
+    <td>
+        <div class="d-grid gap-1">
+            <button class="btn btn-dark btn-sm"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#det{{ loop.index }}">
+                👁 Ver
+            </button>
 
-                        <td>{{ o.po }}</td>
-                        <td>{{ o.ir or '' }}</td>
-                        <td>{{ o.proveedor }}</td>
-                        <td>{{ o.fecha }}</td>
+            <a class="btn btn-primary btn-sm"
+               target="_blank"
+               href="{{ url_for('orden_pdf', po=o.po) }}">
+                🖨 Imprimir
+            </a>
 
-                        <td>
-                            {% if o.estado == 'Recibida' %}
-                                <span class="estado-recibida">Recibida</span>
-                            {% else %}
-                                <span class="estado-pendiente">Pendiente</span>
-                            {% endif %}
-                        </td>
+            {% if o.estado == 'Pendiente' %}
+            <button class="btn btn-success btn-sm"
+                    type="button"
+                    data-bs-toggle="modal"
+                    data-bs-target="#recibir{{ loop.index }}">
+                ✔ Completar
+            </button>
 
-                        <td>
-                            <div class="d-grid gap-1">
-
-                                <button class="btn btn-dark btn-sm"
-                                        type="button"
-                                        data-bs-toggle="collapse"
-                                        data-bs-target="#det{{ loop.index }}">
-                                    👁 Ver
-                                </button>
-
-                                <a class="btn btn-primary btn-sm"
-                                   target="_blank"
-                                   href="{{ url_for('orden_pdf', po=o.po) }}">
-                                    🖨 Imprimir
-                                </a>
-
-                                {% if o.estado != 'Recibida' %}
-                                <button class="btn btn-success btn-sm"
-                                        type="button"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#recibir{{ loop.index }}">
-                                    ✔ Completar
-                                </button>
-                                {% endif %}
-
-                            </div>
-                        </td>
-
-                    </tr>
-
-                    <tr class="collapse fila-detalle" id="det{{ loop.index }}">
-                        <td colspan="6">
-
-                            <h6 class="fw-bold mb-3">Productos de la Orden</h6>
-
-                            <table class="table table-sm table-striped">
-
-                                <thead>
-                                    <tr>
-                                        <th>Producto</th>
-                                        <th>Cantidad</th>
-                                        <th>Precio</th>
-                                        <th>Subtotal</th>
-                                    </tr>
-                                </thead>
-
-                                <tbody>
-                                {% for d in detalles.get(o.po, []) %}
-                                    <tr>
-                                        <td>{{ d.producto }}</td>
-                                        <td>{{ d.cantidad }}</td>
-                                        <td>C${{ '%.2f'|format(d.precio) }}</td>
-                                        <td>C${{ '%.2f'|format(d.subtotal) }}</td>
-                                    </tr>
-                                {% endfor %}
-                                </tbody>
-
-                            </table>
-
-                        </td>
-                    </tr>
-
-                    <!-- MODAL COMPLETAR / RECIBIR ORDEN -->
-                    <div class="modal fade" id="recibir{{ loop.index }}" tabindex="-1">
-                        <div class="modal-dialog">
-                            <form method="POST"
-                                  action="{{ url_for('recibir_orden', po=o.po) }}"
-                                  class="modal-content">
-
-                                <div class="modal-header">
-                                    <h5 class="modal-title">Recibir orden {{ o.po }}</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                </div>
-
-                                <div class="modal-body">
-
-                                    <div class="mb-3">
-                                        <label class="form-label">Recibido por</label>
-                                        <input type="text"
-                                               name="recibido_por"
-                                               class="form-control"
-                                               value="{{ usuario_actual }}">
-                                    </div>
-
-                                    <div class="mb-3">
-                                        <label class="form-label">Factura proveedor</label>
-                                        <input type="text"
-                                               name="numero_factura"
-                                               class="form-control"
-                                               placeholder="Ej: FAC-001">
-                                    </div>
-
-                                    <div class="mb-3">
-                                        <label class="form-label">Observaciones</label>
-                                        <textarea name="memo"
-                                                  class="form-control"
-                                                  rows="3"
-                                                  placeholder="Observaciones de recepción"></textarea>
-                                    </div>
-
-                                    <div class="alert alert-warning">
-                                        Al confirmar, la orden pasará a <strong>Recibida</strong>
-                                        y se sumarán los productos al inventario.
-                                    </div>
-
-                                </div>
-
-                                <div class="modal-footer">
-                                    <button type="button"
-                                            class="btn btn-secondary"
-                                            data-bs-dismiss="modal">
-                                        Cancelar
-                                    </button>
-
-                                    <button type="submit"
-                                            class="btn btn-success">
-                                        Confirmar recepción
-                                    </button>
-                                </div>
-
-                            </form>
-                        </div>
-                    </div>
-
-                {% endfor %}
-
-                <tr id="sinResultados" style="display:none;">
-                    <td colspan="6" class="text-center fw-bold text-muted">
-                        No se encontraron órdenes.
-                    </td>
-                </tr>
-
-                </tbody>
-
-            </table>
-
+            <button class="btn btn-danger btn-sm"
+                    type="button"
+                    data-bs-toggle="modal"
+                    data-bs-target="#cerrar{{ loop.index }}">
+                ✖ Cerrar
+            </button>
+            {% endif %}
         </div>
+    </td>
+</tr>
 
-    </div>
+<tr class="collapse fila-detalle" id="det{{ loop.index }}">
+    <td colspan="6">
+        <h6 class="fw-bold mb-3">Productos de la Orden</h6>
 
-    <div class="col-xl-4">
+        <table class="table table-sm table-striped">
+            <thead>
+            <tr>
+                <th>Producto</th>
+                <th>Cantidad</th>
+                <th>Precio</th>
+                <th>Subtotal</th>
+            </tr>
+            </thead>
 
-        <div class="form-card">
+            <tbody>
+            {% for d in detalles.get(o.po, []) %}
+            <tr>
+                <td>{{ d.producto }}</td>
+                <td>{{ d.cantidad }}</td>
+                <td>C${{ '%.2f'|format(d.precio) }}</td>
+                <td>C${{ '%.2f'|format(d.subtotal) }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </td>
+</tr>
 
-            <h5 class="section-title">📊 Resumen</h5>
+{% endfor %}
 
-            <div class="alert alert-warning">
-                Órdenes Pendientes:
-                <strong>{{ ordenes|selectattr('estado','equalto','Pendiente')|list|length }}</strong>
-            </div>
+<tr id="sinResultados" style="display:none;">
+    <td colspan="6" class="text-center fw-bold text-muted">
+        No se encontraron órdenes.
+    </td>
+</tr>
 
-            <div class="alert alert-success">
-                Órdenes Recibidas:
-                <strong>{{ ordenes|selectattr('estado','equalto','Recibida')|list|length }}</strong>
-            </div>
-
-            <hr>
-
-            <h5 class="section-title">Información</h5>
-
-            <p class="text-muted">
-                Presione <strong>Ver</strong> para consultar los productos de una orden.
-            </p>
-
-            <p class="text-muted">
-                Presione <strong>Imprimir</strong> para generar el PDF.
-            </p>
-
-            <p class="text-muted">
-                Presione <strong>Completar</strong> cuando la orden haya sido recibida.
-            </p>
-
-        </div>
-
-    </div>
+</tbody>
+</table>
 
 </div>
+</div>
+
+<div class="col-xl-4">
+<div class="form-card">
+
+<h5 class="section-title">📊 Resumen</h5>
+
+<div class="alert alert-warning">
+    Órdenes Pendientes:
+    <strong>{{ ordenes|selectattr('estado','equalto','Pendiente')|list|length }}</strong>
+</div>
+
+<div class="alert alert-success">
+    Órdenes Recibidas:
+    <strong>{{ ordenes|selectattr('estado','equalto','Recibida')|list|length }}</strong>
+</div>
+
+<div class="alert alert-danger">
+    Órdenes Cerradas:
+    <strong>{{ ordenes|selectattr('estado','equalto','Cerrada')|list|length }}</strong>
+</div>
+
+<hr>
+
+<h5 class="section-title">Información</h5>
+
+<p class="text-muted">
+    Presione <strong>Ver</strong> para consultar los productos.
+</p>
+
+<p class="text-muted">
+    Presione <strong>Completar</strong> para recibir y sumar al inventario.
+</p>
+
+<p class="text-muted">
+    Presione <strong>Cerrar</strong> si la orden no será recibida.
+</p>
+
+</div>
+</div>
+
+</div>
+
+{% for o in ordenes %}
+{% if o.estado == 'Pendiente' %}
+
+<div class="modal fade" id="recibir{{ loop.index }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+
+            <form method="POST" action="{{ url_for('recibir_orden', po=o.po) }}">
+
+                <div class="modal-header bg-dark text-warning">
+                    <h5 class="modal-title">Recibir orden {{ o.po }}</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="mb-3">
+                        <label class="form-label">Recibido por</label>
+                        <input type="text"
+                               name="recibido_por"
+                               class="form-control"
+                               value="{{ usuario_actual or '' }}"
+                               required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Factura proveedor</label>
+                        <input type="text"
+                               name="numero_factura"
+                               class="form-control"
+                               placeholder="Ej: FAC-001">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Observaciones</label>
+                        <textarea name="memo"
+                                  class="form-control"
+                                  rows="3"
+                                  placeholder="Observaciones de recepción"></textarea>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        Al confirmar, la orden pasará a <strong>Recibida</strong> y se sumarán los productos al inventario.
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        Cancelar
+                    </button>
+
+                    <button type="submit" class="btn btn-success">
+                        Confirmar recepción
+                    </button>
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="cerrar{{ loop.index }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+
+            <form method="POST" action="{{ url_for('cerrar_orden', po=o.po) }}">
+
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">Cerrar orden {{ o.po }}</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <p class="fw-bold">
+                        ¿Seguro que desea cerrar esta orden?
+                    </p>
+
+                    <div class="alert alert-danger">
+                        Esta orden quedará cerrada y no se sumará nada al inventario.
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        Cancelar
+                    </button>
+
+                    <button type="submit" class="btn btn-danger">
+                        Cerrar orden
+                    </button>
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+</div>
+
+{% endif %}
+{% endfor %}
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
@@ -325,24 +352,17 @@ document.addEventListener("DOMContentLoaded", function () {
             if (contenido.includes(texto)) {
                 fila.style.display = "";
                 visibles++;
+
+                if (detalle && detalle.classList.contains("fila-detalle")) {
+                    detalle.style.display = "";
+                }
+
             } else {
                 fila.style.display = "none";
 
                 if (detalle && detalle.classList.contains("fila-detalle")) {
                     detalle.style.display = "none";
                     detalle.classList.remove("show");
-                }
-            }
-
-            if (texto === "") {
-                fila.style.display = "";
-
-                if (detalle && detalle.classList.contains("fila-detalle")) {
-                    detalle.style.display = "";
-                }
-            } else {
-                if (detalle && detalle.classList.contains("fila-detalle") && fila.style.display !== "none") {
-                    detalle.style.display = "";
                 }
             }
         });
