@@ -899,7 +899,7 @@ def orden_pdf(po):
     y = 650
     c.setFont("Helvetica-Bold", 18)
     c.drawString(45, y, "FERRETERÍA YAMILON")
-    y -= 20
+    y -= 18
 
     c.setFont("Helvetica", 9)
     c.drawString(45, y, "YAMIL ENRIQUE RUIZ CAMACHO")
