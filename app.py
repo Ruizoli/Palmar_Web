@@ -944,12 +944,23 @@ def orden_pdf(po):
     y -= 20
 
     c.setFont("Helvetica", 9)
+
     c.drawString(55, y + 5, str(orden["po"]))
     c.drawString(185, y + 5, session.get("usuario", "Administrador"))
-    c.drawString(290, y + 5, str(orden["proveedor"])[:24])
+
+    proveedor = str(orden["proveedor"])
+
+    lineas_proveedor = wrap(proveedor, width=25)
+
+    yy = y + 5
+
+    for linea in lineas_proveedor:
+        c.drawString(290, yy, linea)
+        yy -= 10
+
     c.drawString(455, y + 5, str(orden["fecha"]))
 
-    y -= 40
+    y -= max(40, len(lineas_proveedor) * 12)
 
     c.setFillColorRGB(0.82, 0.82, 0.82)
     c.rect(45, y, 505, 20, fill=1, stroke=0)
