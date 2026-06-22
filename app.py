@@ -845,6 +845,166 @@ def orden_compra():
     )
 
 @app.route("/gestion-ordenes/<po>/imprimir")
+@login_required
+@admin_required
+def orden_pdf(po):
+    orden = fetch_one("""
+        SELECT oc.po, oc.proveedor, oc.fecha, oc.estado, oc.memo,
+               COALESCE(ir.ir, '') AS ir,
+               ir.recibido_por, ir.numero_factura, ir.fecha_recepcion
+        FROM orden_compra oc
+        LEFT JOIN ingreso_recepcion ir ON ir.po = oc.po
+        WHERE oc.po=?
+    """, (po,))
+
+    detalles = fetch_all("""
+        SELECT d.producto,
+               d.cantidad,
+               d.precio,
+               COALESCE(d.precio_venta, 0) AS precio_venta,
+               d.subtotal,
+               COALESCE(p.unidad, 'UND') AS unidad
+        FROM orden_compra_detalle d
+        LEFT JOIN productos p ON p.nombre = d.producto
+        WHERE d.po=?
+    """, (po,))
+
+    if not orden:
+        flash("Orden no encontrada", "danger")
+        return redirect(url_for("gestion_ordenes"))
+
+    path = os.path.join("ordenes_pdf", f"{po}.pdf")
+
+    c = canvas.Canvas(path, pagesize=letter)
+
+    logo_path = os.path.join("static", "img", "YE.png")
+    if os.path.exists(logo_path):
+        c.drawImage(
+            logo_path,
+            45,
+            675,
+            width=120,
+            height=100,
+            preserveAspectRatio=True,
+            mask="auto"
+        )
+
+    c.setFont("Helvetica-Bold", 18)
+    c.drawString(45, 650, "FERRETERÍA YAMILON")
+
+    c.setFont("Helvetica", 9)
+    c.drawString(45, 622, "Rivas, Tola, El Palmar")
+
+    c.setFont("Helvetica", 20)
+    c.drawRightString(550, 745, "Orden de Compra")
+
+    c.setFont("Helvetica-Bold", 13)
+    c.drawRightString(550, 725, f"#{orden['po']}")
+
+    c.setFont("Helvetica", 9)
+    c.drawRightString(550, 710, str(orden["fecha"]))
+
+    subtotal = sum(float(d["subtotal"] or 0) for d in detalles)
+    iva = 0
+    total = subtotal
+
+    c.setFillColorRGB(0.88, 0.88, 0.88)
+    c.rect(340, 620, 210, 65, fill=1, stroke=0)
+
+    c.setFillColorRGB(0, 0, 0)
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(350, 665, "TOTAL")
+
+    c.setFont("Helvetica-Bold", 18)
+    c.drawRightString(540, 635, f"C${total:,.2f}")
+
+    c.setFillColorRGB(0.92, 0.92, 0.92)
+    c.rect(45, 560, 505, 45, fill=1, stroke=0)
+
+    c.setFillColorRGB(0, 0, 0)
+    c.setFont("Helvetica-Bold", 8)
+    c.drawString(55, 590, "MEMO")
+
+    c.setFont("Helvetica", 8)
+    memo = orden["memo"] or "RELLENO PARA ALMACEN"
+    c.drawString(55, 575, str(memo)[:90])
+
+    y = 525
+
+    c.setFillColorRGB(0.82, 0.82, 0.82)
+    c.rect(45, y, 505, 18, fill=1, stroke=0)
+
+    c.setFillColorRGB(0, 0, 0)
+    c.setFont("Helvetica-Bold", 8)
+    c.drawString(55, y + 5, "PO")
+    c.drawString(185, y + 5, "Comprador")
+    c.drawString(290, y + 5, "Proveedor")
+    c.drawString(455, y + 5, "Fecha")
+
+    y -= 20
+
+    c.setFont("Helvetica", 9)
+    c.drawString(55, y + 5, str(orden["po"]))
+    c.drawString(185, y + 5, session.get("usuario", "Administrador"))
+    c.drawString(290, y + 5, str(orden["proveedor"])[:24])
+    c.drawString(455, y + 5, str(orden["fecha"]))
+
+    y -= 40
+
+    c.setFillColorRGB(0.82, 0.82, 0.82)
+    c.rect(45, y, 505, 20, fill=1, stroke=0)
+
+    c.setFillColorRGB(0, 0, 0)
+    c.setFont("Helvetica-Bold", 7)
+    c.drawString(55, y + 6, "Artículo")
+    c.drawString(245, y + 6, "Cant.")
+    c.drawString(300, y + 6, "P. Compra")
+    c.drawString(380, y + 6, "P. Venta")
+    c.drawString(470, y + 6, "Valor")
+
+    y -= 24
+
+    c.setFont("Helvetica", 8)
+
+    for d in detalles:
+        if y < 140:
+            c.showPage()
+            y = 750
+
+        unidad = d["unidad"] or "UND"
+
+        c.drawString(55, y, str(d["producto"])[:32])
+        c.drawRightString(280, y, f"{d['cantidad']} {unidad}")
+        c.drawRightString(360, y, f"C${float(d['precio'] or 0):,.2f}")
+        c.drawRightString(445, y, f"C${float(d['precio_venta'] or 0):,.2f}")
+        c.drawRightString(540, y, f"C${float(d['subtotal'] or 0):,.2f}")
+
+        y -= 20
+
+    y -= 15
+
+    c.setFillColorRGB(0.88, 0.88, 0.88)
+    c.rect(360, y - 65, 190, 75, fill=1, stroke=0)
+
+    c.setFillColorRGB(0, 0, 0)
+    c.setFont("Helvetica-Bold", 9)
+
+    c.drawString(375, y - 5, "Subtotal")
+    c.drawRightString(540, y - 5, f"C${subtotal:,.2f}")
+
+    c.drawString(375, y - 27, "IVA 0%")
+    c.drawRightString(540, y - 27, f"C${iva:,.2f}")
+
+    c.drawString(375, y - 50, "Total")
+    c.drawRightString(540, y - 50, f"C${total:,.2f}")
+
+    if orden["recibido_por"]:
+        c.setFont("Helvetica", 9)
+        c.drawString(55, 90, f"Recibido por: {orden['recibido_por']}")
+        c.drawString(55, 75, f"Factura proveedor: {orden['numero_factura'] or ''}")
+
+    c.save()
+    return send_file(path, as_attachment=False)
 
 
 @app.route("/gestion-ordenes/<po>/recibir", methods=["POST"])
