@@ -895,14 +895,17 @@ def orden_pdf(po):
         )
 
     # ENCABEZADO IZQUIERDO
+
     y = 650
     c.setFont("Helvetica-Bold", 18)
-    c.drawString(45, y, "YAMIL ENRIQUE RUIZ CAMACHO")
-    y -= 18
+    c.drawString(45, y, "FERRETERÍA YAMILON")
+    y -= 16
 
     c.setFont("Helvetica", 9)
+    c.drawString(45, y, "YAMIL ENRIQUE RUIZ CAMACHO")
+    y -= 12
     c.drawString(45, y, "Teléfono: 7533-3012")
-    y -= 14
+    y -= 12
     c.drawString(45, y, "Rivas, Tola, El Palmar")
 
     # ENCABEZADO DERECHO
