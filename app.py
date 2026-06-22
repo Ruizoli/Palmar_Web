@@ -879,9 +879,9 @@ def orden_pdf(po):
         return redirect(url_for("gestion_ordenes"))
 
     path = os.path.join("ordenes_pdf", f"{po}.pdf")
-
     c = canvas.Canvas(path, pagesize=letter)
 
+    # LOGO
     logo_path = os.path.join("static", "img", "YE.png")
     if os.path.exists(logo_path):
         c.drawImage(
@@ -894,17 +894,18 @@ def orden_pdf(po):
             mask="auto"
         )
 
-    c.setFont("Helvetica-Bold", 22)
-    c.drawString(55, y, "YAMIL ENRIQUE RUIZ CAMACHO")
-    y -= 25
-
-    c.setFont("Helvetica", 11)
-    c.drawString(55, y, "Teléfono: 7533-3012")
+    # ENCABEZADO IZQUIERDO
+    y = 650
+    c.setFont("Helvetica-Bold", 18)
+    c.drawString(45, y, "YAMIL ENRIQUE RUIZ CAMACHO")
     y -= 18
 
-    c.drawString(55, y, "Rivas, Tola, El Palmar")
-    y -= 20
+    c.setFont("Helvetica", 9)
+    c.drawString(45, y, "Teléfono: 7533-3012")
+    y -= 14
+    c.drawString(45, y, "Rivas, Tola, El Palmar")
 
+    # ENCABEZADO DERECHO
     c.setFont("Helvetica", 20)
     c.drawRightString(550, 745, "Orden de Compra")
 
@@ -914,6 +915,7 @@ def orden_pdf(po):
     c.setFont("Helvetica", 9)
     c.drawRightString(550, 710, str(orden["fecha"]))
 
+    # TOTAL GRANDE
     subtotal = sum(float(d["subtotal"] or 0) for d in detalles)
     iva = 0
     total = subtotal
@@ -928,6 +930,7 @@ def orden_pdf(po):
     c.setFont("Helvetica-Bold", 18)
     c.drawRightString(540, 635, f"C${total:,.2f}")
 
+    # MEMO
     c.setFillColorRGB(0.92, 0.92, 0.92)
     c.rect(45, 560, 505, 45, fill=1, stroke=0)
 
@@ -939,8 +942,8 @@ def orden_pdf(po):
     memo = orden["memo"] or "RELLENO PARA ALMACEN"
     c.drawString(55, 575, str(memo)[:90])
 
+    # DATOS GENERALES
     y = 525
-
     c.setFillColorRGB(0.82, 0.82, 0.82)
     c.rect(45, y, 505, 18, fill=1, stroke=0)
 
@@ -954,16 +957,12 @@ def orden_pdf(po):
     y -= 20
 
     c.setFont("Helvetica", 9)
-
     c.drawString(55, y + 5, str(orden["po"]))
     c.drawString(185, y + 5, session.get("usuario", "Administrador"))
 
-    proveedor = str(orden["proveedor"])
-
-    lineas_proveedor = wrap(proveedor, width=25)
-
+    proveedor = str(orden["proveedor"] or "")
+    lineas_proveedor = wrap(proveedor, width=32)
     yy = y + 5
-
     for linea in lineas_proveedor:
         c.drawString(290, yy, linea)
         yy -= 10
@@ -972,6 +971,7 @@ def orden_pdf(po):
 
     y -= max(40, len(lineas_proveedor) * 12)
 
+    # TABLA PRODUCTOS - SOLO PRECIO DE COMPRA EN PDF
     c.setFillColorRGB(0.82, 0.82, 0.82)
     c.rect(45, y, 505, 20, fill=1, stroke=0)
 
@@ -983,7 +983,6 @@ def orden_pdf(po):
     c.drawString(470, y + 6, "Valor")
 
     y -= 24
-
     c.setFont("Helvetica", 8)
 
     for d in detalles:
@@ -992,25 +991,25 @@ def orden_pdf(po):
             y = 750
 
         unidad = d["unidad"] or "UND"
-
-        producto = str(d["producto"])
-
-        lineas = wrap(producto, width=30)
+        producto = str(d["producto"] or "")
+        lineas = wrap(producto, width=38)
 
         yy = y
-
         for linea in lineas:
             c.drawString(55, yy, linea)
             yy -= 10
 
-        c.drawString(55, y, str(d["producto"])[:42])
         c.drawRightString(340, y, f"{d['cantidad']} {unidad}")
         c.drawRightString(430, y, f"C${float(d['precio'] or 0):,.2f}")
         c.drawRightString(540, y, f"C${float(d['subtotal'] or 0):,.2f}")
 
         y -= max(20, len(lineas) * 12)
 
+    # RESUMEN
     y -= 15
+    if y < 120:
+        c.showPage()
+        y = 750
 
     c.setFillColorRGB(0.88, 0.88, 0.88)
     c.rect(360, y - 65, 190, 75, fill=1, stroke=0)
@@ -1027,6 +1026,7 @@ def orden_pdf(po):
     c.drawString(375, y - 50, "Total")
     c.drawRightString(540, y - 50, f"C${total:,.2f}")
 
+    # RECIBIDO
     if orden["recibido_por"]:
         c.setFont("Helvetica", 9)
         c.drawString(55, 90, f"Recibido por: {orden['recibido_por']}")
@@ -1034,7 +1034,6 @@ def orden_pdf(po):
 
     c.save()
     return send_file(path, as_attachment=False)
-
 
 @app.route("/gestion-ordenes/<po>/recibir", methods=["POST"])
 @login_required
