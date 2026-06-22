@@ -110,13 +110,14 @@ def logout():
 def dashboard():
     ventas_7 = fetch_all("""
         SELECT 
-            TO_CHAR(fecha::date, 'YYYY-MM-DD') AS dia,
+            TO_CHAR((fecha AT TIME ZONE 'UTC' AT TIME ZONE 'America/Managua')::date, 'YYYY-MM-DD') AS dia,
             COUNT(*) AS cantidad,
             COALESCE(SUM(total), 0) AS total
         FROM ventas
-        WHERE fecha >= CURRENT_DATE - INTERVAL '6 days'
-        GROUP BY fecha::date
-        ORDER BY fecha::date
+        WHERE (fecha AT TIME ZONE 'UTC' AT TIME ZONE 'America/Managua')::date >=
+            ((CURRENT_TIMESTAMP AT TIME ZONE 'America/Managua')::date - INTERVAL '6 days')
+        GROUP BY (fecha AT TIME ZONE 'UTC' AT TIME ZONE 'America/Managua')::date
+        ORDER BY (fecha AT TIME ZONE 'UTC' AT TIME ZONE 'America/Managua')::date
     """)
 
     mas_vendidos = fetch_all("""
@@ -164,15 +165,19 @@ def dashboard():
 
         "ventas_mes": execute_scalar("""
             SELECT COUNT(*) FROM ventas
-            WHERE EXTRACT(MONTH FROM fecha) = EXTRACT(MONTH FROM CURRENT_DATE)
-            AND EXTRACT(YEAR FROM fecha) = EXTRACT(YEAR FROM CURRENT_DATE)
+            WHERE EXTRACT(MONTH FROM (fecha AT TIME ZONE 'UTC' AT TIME ZONE 'America/Managua')) =
+                EXTRACT(MONTH FROM (CURRENT_TIMESTAMP AT TIME ZONE 'America/Managua'))
+            AND EXTRACT(YEAR FROM (fecha AT TIME ZONE 'UTC' AT TIME ZONE 'America/Managua')) =
+                EXTRACT(YEAR FROM (CURRENT_TIMESTAMP AT TIME ZONE 'America/Managua'))
         """),
 
         "ingresos_mes": float(execute_scalar("""
             SELECT COALESCE(SUM(total), 0)
             FROM ventas
-            WHERE EXTRACT(MONTH FROM fecha) = EXTRACT(MONTH FROM CURRENT_DATE)
-            AND EXTRACT(YEAR FROM fecha) = EXTRACT(YEAR FROM CURRENT_DATE)
+            WHERE EXTRACT(MONTH FROM (fecha AT TIME ZONE 'UTC' AT TIME ZONE 'America/Managua')) =
+                EXTRACT(MONTH FROM (CURRENT_TIMESTAMP AT TIME ZONE 'America/Managua'))
+            AND EXTRACT(YEAR FROM (fecha AT TIME ZONE 'UTC' AT TIME ZONE 'America/Managua')) =
+                EXTRACT(YEAR FROM (CURRENT_TIMESTAMP AT TIME ZONE 'America/Managua'))
         """) or 0),
 
         "po_recibidas": execute_scalar("SELECT COUNT(*) FROM orden_compra WHERE estado='Recibida'"),
@@ -968,9 +973,8 @@ def orden_pdf(po):
     c.setFillColorRGB(0, 0, 0)
     c.setFont("Helvetica-Bold", 7)
     c.drawString(55, y + 6, "Artículo")
-    c.drawString(245, y + 6, "Cant.")
-    c.drawString(300, y + 6, "P. Compra")
-    c.drawString(380, y + 6, "P. Venta")
+    c.drawString(300, y + 6, "Cant.")
+    c.drawString(380, y + 6, "Precio")
     c.drawString(470, y + 6, "Valor")
 
     y -= 24
@@ -984,13 +988,22 @@ def orden_pdf(po):
 
         unidad = d["unidad"] or "UND"
 
-        c.drawString(55, y, str(d["producto"])[:32])
-        c.drawRightString(280, y, f"{d['cantidad']} {unidad}")
-        c.drawRightString(360, y, f"C${float(d['precio'] or 0):,.2f}")
-        c.drawRightString(445, y, f"C${float(d['precio_venta'] or 0):,.2f}")
+        producto = str(d["producto"])
+
+        lineas = wrap(producto, width=30)
+
+        yy = y
+
+        for linea in lineas:
+            c.drawString(55, yy, linea)
+            yy -= 10
+
+        c.drawString(55, y, str(d["producto"])[:42])
+        c.drawRightString(340, y, f"{d['cantidad']} {unidad}")
+        c.drawRightString(430, y, f"C${float(d['precio'] or 0):,.2f}")
         c.drawRightString(540, y, f"C${float(d['subtotal'] or 0):,.2f}")
 
-        y -= 20
+        y -= max(20, len(lineas) * 12)
 
     y -= 15
 
