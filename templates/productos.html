@@ -1,0 +1,253 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<style>
+.local-title{
+    text-align:center;
+    font-size:38px;
+    font-weight:900;
+    color:#d4af37;
+    background:white;
+    padding:14px;
+    margin-bottom:22px;
+    border-left:8px solid #d4af37;
+    border-right:8px solid #d4af37;
+}
+
+.local-search-bar{
+    background:#fff6dc;
+    border-left:8px solid #d4af37;
+    padding:15px;
+    margin-bottom:15px;
+    box-shadow:0 2px 8px rgba(0,0,0,.08);
+}
+
+.local-search-input{
+    max-width:350px;
+}
+
+.local-dark-btn{
+    background:#222;
+    color:white;
+    border:none;
+    font-weight:700;
+}
+
+.local-dark-btn:hover{
+    background:#000;
+    color:white;
+}
+
+.local-summary-row{
+    display:flex;
+    gap:15px;
+    flex-wrap:wrap;
+    margin-bottom:20px;
+}
+
+.local-summary-box{
+    flex:1;
+    min-width:200px;
+    background:white;
+    padding:15px;
+    border-left:6px solid #d4af37;
+    box-shadow:0 2px 8px rgba(0,0,0,.08);
+    font-weight:bold;
+}
+
+.local-table-card{
+    background:white;
+    padding:15px;
+    border-radius:10px;
+    box-shadow:0 2px 10px rgba(0,0,0,.08);
+}
+
+.local-table thead th{
+    background:#111 !important;
+    color:#d4af37 !important;
+    font-weight:800;
+}
+
+.local-table tbody tr:hover{
+    background:#fff8e1;
+}
+
+.unidad-badge{
+    background:#111;
+    color:#d4af37;
+    padding:5px 10px;
+    border-radius:15px;
+    font-weight:800;
+    display:inline-block;
+    min-width:55px;
+}
+</style>
+
+<h2 class="local-title">
+    Inventario General
+</h2>
+
+<div class="local-search-bar">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+
+        <label class="fw-bold">
+            🔍 Buscar producto, categoría o unidad:
+        </label>
+
+        <input
+            type="text"
+            class="form-control local-search-input"
+            id="buscarProducto"
+            placeholder="Buscar..."
+            autocomplete="off"
+        >
+
+        <button
+            type="button"
+            class="btn local-dark-btn"
+            id="limpiarBusqueda">
+            Limpiar
+        </button>
+
+    </div>
+</div>
+
+<div class="local-summary-row">
+
+    <div class="local-summary-box">
+        Productos: <span id="resProductos">0</span>
+    </div>
+
+    <div class="local-summary-box">
+        Unidades: <span id="resUnidades">0</span>
+    </div>
+
+    <div class="local-summary-box">
+        Total en Inventario:
+        <span id="resInvertido">C$0.00</span>
+    </div>
+
+</div>
+
+<div class="local-table-card table-responsive">
+
+    <table class="table local-table" id="tablaProductos">
+
+        <thead>
+            <tr>
+                <th>Producto</th>
+                <th>Categoría</th>
+                <th class="text-end">Precio</th>
+                <th class="text-center">Stock</th>
+                <th class="text-center">Unidad</th>
+                <th class="text-end">Invertido</th>
+            </tr>
+        </thead>
+
+        <tbody>
+
+            {% for p in productos %}
+
+            <tr class="fila-producto"
+                data-busqueda="{{ p.nombre }} {{ p.categoria }} {{ p.unidad or 'UND' }}"
+                data-stock="{{ p.stock or 0 }}"
+                data-invertido="{{ p.invertido or 0 }}">
+
+                <td>{{ p.nombre }}</td>
+
+                <td>{{ p.categoria }}</td>
+
+                <td class="text-end">
+                    C${{ "{:,.2f}".format(p.precio or 0) }}
+                </td>
+
+                <td class="text-center">
+                    {{ p.stock }}
+                </td>
+
+                <td class="text-center">
+                    <span class="unidad-badge">
+                        {{ p.unidad or 'UND' }}
+                    </span>
+                </td>
+
+                <td class="text-end">
+                    C${{ "{:,.2f}".format(p.invertido or 0) }}
+                </td>
+
+            </tr>
+
+            {% endfor %}
+
+            <tr id="sinProductos" style="display:none;">
+                <td colspan="6" class="text-center text-muted fw-bold">
+                    No se encontraron productos.
+                </td>
+            </tr>
+
+        </tbody>
+
+    </table>
+
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const buscarProducto = document.getElementById("buscarProducto");
+    const limpiarBusqueda = document.getElementById("limpiarBusqueda");
+    const filas = document.querySelectorAll(".fila-producto");
+    const sinProductos = document.getElementById("sinProductos");
+
+    const resProductos = document.getElementById("resProductos");
+    const resUnidades = document.getElementById("resUnidades");
+    const resInvertido = document.getElementById("resInvertido");
+
+    function formatoCordoba(valor) {
+        return "C$" + valor.toLocaleString("en-US", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+
+    function filtrarProductos() {
+        const texto = buscarProducto.value.toLowerCase().trim();
+
+        let productos = 0;
+        let unidades = 0;
+        let invertido = 0;
+
+        filas.forEach(fila => {
+            const contenido = fila.dataset.busqueda.toLowerCase();
+
+            if (contenido.includes(texto)) {
+                fila.style.display = "";
+                productos++;
+                unidades += parseInt(fila.dataset.stock || 0);
+                invertido += parseFloat(fila.dataset.invertido || 0);
+            } else {
+                fila.style.display = "none";
+            }
+        });
+
+        resProductos.textContent = productos;
+        resUnidades.textContent = unidades;
+        resInvertido.textContent = formatoCordoba(invertido);
+
+        sinProductos.style.display = productos === 0 ? "" : "none";
+    }
+
+    buscarProducto.addEventListener("input", filtrarProductos);
+
+    limpiarBusqueda.addEventListener("click", function () {
+        buscarProducto.value = "";
+        filtrarProductos();
+        buscarProducto.focus();
+    });
+
+    filtrarProductos();
+
+});
+</script>
+
+{% endblock %}
