@@ -899,7 +899,7 @@ def orden_pdf(po):
     y = 650
     c.setFont("Helvetica-Bold", 18)
     c.drawString(45, y, "FERRETERÍA YAMILON")
-    y -= 16
+    y -= 28
 
     c.setFont("Helvetica", 9)
     c.drawString(45, y, "YAMIL ENRIQUE RUIZ CAMACHO")
@@ -995,7 +995,7 @@ def orden_pdf(po):
 
         unidad = d["unidad"] or "UND"
         producto = str(d["producto"] or "")
-        lineas = wrap(producto, width=38)
+        lineas = wrap(producto, width=45)
 
         yy = y
         for linea in lineas:
