@@ -904,7 +904,7 @@ def orden_pdf(po):
     c.setFont("Helvetica", 9)
     c.drawString(45, y, "YAMIL ENRIQUE RUIZ CAMACHO")
     y -= 12
-    c.drawString(45, y, "Teléfono: 7533-3012")
+    c.drawString(45, y, "Teléfono: 7825-6818")
     y -= 12
     c.drawString(45, y, "Rivas, Tola, El Palmar")
 
