@@ -136,6 +136,11 @@
                 ✔ Completar
             </button>
 
+            <a class="btn btn-warning btn-sm"
+            href="{{ url_for('editar_orden', po=o.po) }}">
+                ✏ Editar
+            </a>
+
             <button class="btn btn-danger btn-sm"
                     type="button"
                     data-bs-toggle="modal"
