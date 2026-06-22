@@ -941,7 +941,7 @@ def recibir_orden(po):
     ir = f"IR-PALMAR-{int(execute_scalar('SELECT COALESCE(MAX(id),0)+1 FROM ingreso_recepcion') or 1):04d}"
 
     detalles = fetch_all("""
-        SELECT producto, cantidad
+        SELECT producto, cantidad, precio_venta
         FROM orden_compra_detalle
         WHERE po=?
     """, (po,))
@@ -962,9 +962,10 @@ def recibir_orden(po):
         for d in detalles:
             cursor.execute("""
                 UPDATE productos
-                SET stock = stock + %s
+                SET stock = stock + %s,
+                    precio = %s
                 WHERE nombre = %s
-            """, (d["cantidad"], d["producto"]))
+            """, (d["cantidad"], d["precio_venta"], d["producto"]))
 
             if cursor.rowcount == 0:
                 raise Exception(f"No se encontró el producto en inventario: {d['producto']}")

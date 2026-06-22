@@ -37,7 +37,7 @@
       {% if rol_actual in ['Administrador', 'Vendedor'] %}
       <a class="side-link {{ 'active' if endpoint=='clientes' else '' }}" href="{{ url_for('clientes') }}">
         <i class="fa-solid fa-user-group"></i>
-        <span>Clientes</span>
+        <span>Gestión Comercial</span>
       </a>
       {% endif %}
 
@@ -55,7 +55,7 @@
 
       <a class="side-link {{ 'active' if endpoint=='productos' else '' }}" href="{{ url_for('productos') }}">
         <i class="fa-solid fa-toolbox"></i>
-        <span>Productos</span>
+        <span>Inventario</span>
       </a>
 
       {% if rol_actual in ['Administrador', 'Vendedor'] %}
