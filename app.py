@@ -894,11 +894,16 @@ def orden_pdf(po):
             mask="auto"
         )
 
-    c.setFont("Helvetica-Bold", 18)
-    c.drawString(45, 650, "FERRETERÍA YAMILON")
+    c.setFont("Helvetica-Bold", 22)
+    c.drawString(55, y, "YAMIL ENRIQUE RUIZ CAMACHO")
+    y -= 25
 
-    c.setFont("Helvetica", 9)
-    c.drawString(45, 622, "Rivas, Tola, El Palmar")
+    c.setFont("Helvetica", 11)
+    c.drawString(55, y, "Teléfono: 7533-3012")
+    y -= 18
+
+    c.drawString(55, y, "Rivas, Tola, El Palmar")
+    y -= 20
 
     c.setFont("Helvetica", 20)
     c.drawRightString(550, 745, "Orden de Compra")
