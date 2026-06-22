@@ -692,6 +692,86 @@ def gestion_ordenes():
         detalles[o["po"]] = fetch_all("SELECT producto, cantidad, precio, subtotal FROM orden_compra_detalle WHERE po=?", (o["po"],))
     return render_template("gestion_ordenes.html", ordenes=ordenes, detalles=detalles, q=q)
 
+
+@app.route("/gestion-ordenes/<po>/editar", methods=["GET", "POST"])
+@login_required
+@admin_required
+def editar_orden(po):
+    orden = fetch_one("""
+        SELECT po, fecha, proveedor, estado, memo
+        FROM orden_compra
+        WHERE po=?
+    """, (po,))
+
+    if not orden:
+        flash("Orden no encontrada", "danger")
+        return redirect(url_for("gestion_ordenes"))
+
+    if orden["estado"] != "Pendiente":
+        flash("Solo se pueden editar órdenes pendientes", "warning")
+        return redirect(url_for("gestion_ordenes"))
+
+    if request.method == "POST":
+        proveedor = request.form.get("proveedor", "").strip()
+        fecha = request.form.get("fecha")
+        memo = request.form.get("memo", "")
+        productos = request.form.getlist("producto[]")
+        cantidades = request.form.getlist("cantidad[]")
+        precios = request.form.getlist("precio[]")
+        precios_venta = request.form.getlist("precio_venta[]")
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("""
+                UPDATE orden_compra
+                SET proveedor=%s, fecha=%s, memo=%s
+                WHERE po=%s
+            """, (proveedor, fecha, memo, po))
+
+            cursor.execute("""
+                DELETE FROM orden_compra_detalle
+                WHERE po=%s
+            """, (po,))
+
+            for i in range(len(productos)):
+                producto = productos[i]
+                cantidad = int(cantidades[i])
+                precio = float(precios[i])
+                precio_venta = float(precios_venta[i])
+                subtotal = cantidad * precio
+
+                cursor.execute("""
+                    INSERT INTO orden_compra_detalle(
+                        po, producto, cantidad, precio, precio_venta, subtotal
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (po, producto, cantidad, precio, precio_venta, subtotal))
+
+            conn.commit()
+            flash(f"Orden {po} actualizada correctamente", "success")
+            return redirect(url_for("gestion_ordenes"))
+
+        except Exception as e:
+            conn.rollback()
+            flash(str(e), "danger")
+
+        finally:
+            conn.close()
+
+    detalles = fetch_all("""
+        SELECT producto, cantidad, precio, precio_venta, subtotal
+        FROM orden_compra_detalle
+        WHERE po=?
+    """, (po,))
+
+    return render_template(
+        "editar_orden.html",
+        orden=orden,
+        detalles=detalles
+    )
+
 @app.route("/orden-compra", methods=["GET", "POST"])
 @login_required
 @admin_required
@@ -765,173 +845,7 @@ def orden_compra():
     )
 
 @app.route("/gestion-ordenes/<po>/imprimir")
-@login_required
-@admin_required
-def orden_pdf(po):
-    orden = fetch_one("""
-        SELECT oc.po, oc.proveedor, oc.fecha, oc.estado, oc.memo,
-               COALESCE(ir.ir, '') AS ir,
-               ir.recibido_por, ir.numero_factura, ir.fecha_recepcion
-        FROM orden_compra oc
-        LEFT JOIN ingreso_recepcion ir ON ir.po = oc.po
-        WHERE oc.po=?
-    """, (po,))
 
-    detalles = fetch_all("""
-        SELECT d.producto,
-               d.cantidad,
-               d.precio,
-               d.subtotal,
-               COALESCE(p.unidad, 'UND') AS unidad
-        FROM orden_compra_detalle d
-        LEFT JOIN productos p ON p.nombre = d.producto
-        WHERE d.po=?
-    """, (po,))
-
-    if not orden:
-        flash("Orden no encontrada", "danger")
-        return redirect(url_for("gestion_ordenes"))
-
-    path = os.path.join("ordenes_pdf", f"{po}.pdf")
-
-    c = canvas.Canvas(path, pagesize=letter)
-    width, height = letter
-
-    # LOGO
-    logo_path = os.path.join("static", "img", "YE.png")
-    if os.path.exists(logo_path):
-        c.drawImage(
-            logo_path,
-            45,
-            675,
-            width=120,
-            height=100,
-            preserveAspectRatio=True,
-            mask="auto"
-        )
-
-    # ENCABEZADO IZQUIERDO
-    c.setFont("Helvetica-Bold", 18)
-    c.drawString(45, 650, "FERRETERÍA YAMILON")
-
-    c.setFont("Helvetica", 9)
- 
-    c.drawString(45, 622, "Rivas, Tola, El Palmar")
-
-    # ENCABEZADO DERECHO
-    c.setFont("Helvetica", 20)
-    c.drawRightString(550, 745, "Orden de Compra")
-
-    c.setFont("Helvetica-Bold", 13)
-    c.drawRightString(550, 725, f"#{orden['po']}")
-
-    c.setFont("Helvetica", 9)
-    c.drawRightString(550, 710, str(orden["fecha"]))
-
-    # TOTAL GRANDE
-    subtotal = sum(float(d["subtotal"] or 0) for d in detalles)
-    iva = 0
-    total = subtotal
-
-    c.setFillColorRGB(0.88, 0.88, 0.88)
-    c.rect(340, 620, 210, 65, fill=1, stroke=0)
-
-    c.setFillColorRGB(0, 0, 0)
-    c.setFont("Helvetica-Bold", 10)
-    c.drawString(350, 665, "TOTAL")
-
-    c.setFont("Helvetica-Bold", 18)
-    c.drawRightString(540, 635, f"C${total:,.2f}")
-
-    # MEMO
-    c.setFillColorRGB(0.92, 0.92, 0.92)
-    c.rect(45, 560, 505, 45, fill=1, stroke=0)
-
-    c.setFillColorRGB(0, 0, 0)
-    c.setFont("Helvetica-Bold", 8)
-    c.drawString(55, 590, "MEMO")
-
-    c.setFont("Helvetica", 8)
-    memo = orden["memo"] or "RELLENO PARA ALMACEN"
-    c.drawString(55, 575, str(memo)[:90])
-
-    # DATOS GENERALES
-    y = 525
-
-    c.setFillColorRGB(0.82, 0.82, 0.82)
-    c.rect(45, y, 505, 18, fill=1, stroke=0)
-
-    c.setFillColorRGB(0, 0, 0)
-    c.setFont("Helvetica-Bold", 8)
-    c.drawString(55, y + 5, "PO")
-    c.drawString(185, y + 5, "Comprador")
-    c.drawString(290, y + 5, "Proveedor")
-    c.drawString(455, y + 5, "Fecha")
-
-    y -= 20
-
-    c.setFont("Helvetica", 9)
-    c.drawString(55, y + 5, str(orden["po"]))
-
-        # Comprador
-    c.drawString(185, y + 5, session.get("usuario", "Administrador"))
-    c.drawString(290, y + 5, str(orden["proveedor"])[:24])
-    c.drawString(455, y + 5, str(orden["fecha"]))
-
-    # TABLA PRODUCTOS
-    y -= 40
-
-    c.setFillColorRGB(0.82, 0.82, 0.82)
-    c.rect(45, y, 505, 20, fill=1, stroke=0)
-
-    c.setFillColorRGB(0, 0, 0)
-    c.setFont("Helvetica-Bold", 8)
-    c.drawString(55, y + 6, "Artículo")
-    c.drawString(305, y + 6, "Cantidad")
-    c.drawString(380, y + 6, "Precio")
-    c.drawString(470, y + 6, "Valor")
-
-    y -= 24
-
-    c.setFont("Helvetica", 9)
-
-    for d in detalles:
-        if y < 140:
-            c.showPage()
-            y = 750
-
-        c.drawString(55, y, str(d["producto"])[:42])
-        c.drawRightString(340, y, str(d["cantidad"]))
-        c.drawRightString(430, y, f"C${float(d['precio']):,.2f}")
-        c.drawRightString(540, y, f"C${float(d['subtotal']):,.2f}")
-        y -= 20
-
-    # RESUMEN
-    y -= 15
-
-    c.setFillColorRGB(0.88, 0.88, 0.88)
-    c.rect(360, y - 65, 190, 75, fill=1, stroke=0)
-
-    c.setFillColorRGB(0, 0, 0)
-    c.setFont("Helvetica-Bold", 9)
-
-    c.drawString(375, y - 5, "Subtotal")
-    c.drawRightString(540, y - 5, f"C${subtotal:,.2f}")
-
-    c.drawString(375, y - 27, "IVA 0%")
-    c.drawRightString(540, y - 27, f"C${iva:,.2f}")
-
-    c.drawString(375, y - 50, "Total")
-    c.drawRightString(540, y - 50, f"C${total:,.2f}")
-
-    # RECIBIDO
-    if orden["recibido_por"]:
-        c.setFont("Helvetica", 9)
-        c.drawString(55, 90, f"Recibido por: {orden['recibido_por']}")
-        c.drawString(55, 75, f"Factura proveedor: {orden['numero_factura'] or ''}")
-
-    c.save()
-    return send_file(path, as_attachment=False)
 
 @app.route("/gestion-ordenes/<po>/recibir", methods=["POST"])
 @login_required
