@@ -737,12 +737,15 @@ def orden_compra():
                 producto = item.get("producto")
                 cantidad = int(item.get("cantidad", 0))
                 precio = float(item.get("precio", 0))
+                precio_venta = float(item.get("precio_venta", 0))
                 subtotal = float(item.get("subtotal", cantidad * precio))
 
                 cursor.execute("""
-                    INSERT INTO orden_compra_detalle(po, producto, cantidad, precio, subtotal)
-                    VALUES (%s, %s, %s, %s, %s)
-                """, (po, producto, cantidad, precio, subtotal))
+                    INSERT INTO orden_compra_detalle(
+                        po, producto, cantidad, precio, precio_venta, subtotal
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (po, producto, cantidad, precio, precio_venta, subtotal))
 
             conn.commit()
             flash(f"Orden {po} guardada correctamente", "success")
@@ -960,12 +963,17 @@ def recibir_orden(po):
         """, (ir, po, recibido_por, numero_factura, memo))
 
         for d in detalles:
+            precio_venta = float(d["precio_venta"] or 0)
+
+            if precio_venta <= 0:
+                raise Exception(f"El producto {d['producto']} no tiene precio de venta válido")
+
             cursor.execute("""
                 UPDATE productos
                 SET stock = stock + %s,
                     precio = %s
                 WHERE nombre = %s
-            """, (d["cantidad"], d["precio_venta"], d["producto"]))
+            """, (d["cantidad"], precio_venta, d["producto"]))
 
             if cursor.rowcount == 0:
                 raise Exception(f"No se encontró el producto en inventario: {d['producto']}")
