@@ -741,10 +741,18 @@ def editar_orden(po):
             """, (po,))
 
             for i in range(len(productos)):
-                producto = productos[i]
-                cantidad = int(cantidades[i])
-                precio = float(precios[i])
-                precio_venta = float(precios_venta[i])
+                producto = productos[i].strip()
+
+                if not producto:
+                    continue
+
+                cantidad = int(cantidades[i] or 0)
+                precio = float(precios[i] or 0)
+                precio_venta = float(precios_venta[i] or 0)
+
+                if cantidad <= 0:
+                    continue
+
                 subtotal = cantidad * precio
 
                 cursor.execute("""
@@ -753,7 +761,6 @@ def editar_orden(po):
                     )
                     VALUES (%s, %s, %s, %s, %s, %s)
                 """, (po, producto, cantidad, precio, precio_venta, subtotal))
-
             conn.commit()
             flash(f"Orden {po} actualizada correctamente", "success")
             return redirect(url_for("gestion_ordenes"))
