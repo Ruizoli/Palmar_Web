@@ -3,6 +3,44 @@
 
 <h2 class="page-title">PROFORMA DE VENTA</h2>
 
+<div class="form-card mb-3">
+    <h5 class="section-title">Opciones</h5>
+
+    <div class="d-flex gap-2 flex-wrap">
+
+        <a href="{{ url_for('ventas') }}" class="btn btn-success">
+            <i class="bi bi-receipt"></i> Nueva Venta
+        </a>
+
+        <a href="{{ url_for('nueva_proforma') }}" class="btn btn-warning">
+            <i class="bi bi-file-earmark-text"></i> Nueva Proforma
+        </a>
+
+        <a href="{{ url_for('proformas') }}" class="btn btn-dark">
+            <i class="bi bi-card-list"></i> Ver Proformas
+        </a>
+
+    </div>
+</div>
+
+<div class="form-card mb-3">
+  <h5 class="section-title">Opciones de Proforma</h5>
+
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('ventas') }}" class="btn btn-success">
+      Nueva Venta
+    </a>
+
+    <a href="{{ url_for('nueva_proforma') }}" class="btn btn-warning">
+      Nueva Proforma
+    </a>
+
+    <a href="{{ url_for('proformas') }}" class="btn btn-dark">
+      Ver Proformas
+    </a>
+  </div>
+</div>
+
 <form method="post" class="ventas-form" id="ventaForm">
 
   <div class="form-card mb-3">
