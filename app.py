@@ -711,8 +711,6 @@ def proforma_pdf(proforma_id):
 
     cliente = proforma["cliente_nombre"] or "CLIENTE GENERAL"
 
-    c.setFont("Helvetica-Bold", 10)
-    c.drawString(40, 685, f"CLIENTE: {cliente}")
 
     y = 650
 
@@ -981,28 +979,28 @@ def factura_pdf(venta_id):
 
     cliente = venta["cliente_nombre"] or "CLIENTE GENERAL"
 
-    c.setFont("Helvetica-Bold", 10)
-    c.drawString(40, 685, f"CLIENTE: {cliente}")
-
     y = 650
 
+    # Encabezado gris
     c.setFillColorRGB(0.82, 0.82, 0.82)
     c.rect(40, y, 520, 20, fill=1, stroke=0)
 
     c.setFillColorRGB(0, 0, 0)
     c.setFont("Helvetica-Bold", 8)
-    c.drawString(50, y + 7, "Factura")
-    c.drawString(200, y + 7, "Fecha")
-    c.drawString(380, y + 7, "Vendedor")
+
+    c.drawString(50, y + 7, "Cliente")
+    c.drawString(300, y + 7, "Vendedor")
+    c.drawString(460, y + 7, "Fecha")
 
     y -= 22
 
     vendedor = f"{venta['empleado_nombre'] or ''} {venta['empleado_apellido'] or ''}".strip()
 
     c.setFont("Helvetica", 9)
-    c.drawString(50, y + 7, f"FACT-{numero_factura:04d}")
-    c.drawString(200, y + 7, venta["fecha"].strftime("%d/%m/%Y"))
-    c.drawString(380, y + 7, vendedor or "No registrado")
+
+    c.drawString(50, y + 7, cliente)
+    c.drawString(300, y + 7, vendedor or "No registrado")
+    c.drawString(460, y + 7, venta["fecha"].strftime("%d/%m/%Y"))
 
     y -= 45
 
@@ -1263,7 +1261,6 @@ def orden_compra():
         productos=productos,
         fecha_hoy=datetime.now().strftime("%Y-%m-%d")
     )
-
 @app.route("/gestion-ordenes/<po>/imprimir")
 @login_required
 @admin_required
@@ -1278,7 +1275,9 @@ def orden_pdf(po):
     """, (po,))
 
     detalles = fetch_all("""
-        SELECT d.producto,
+        SELECT 
+               COALESCE(p.id, 0) AS producto_id,
+               d.producto,
                d.cantidad,
                d.precio,
                COALESCE(d.precio_venta, 0) AS precio_venta,
@@ -1296,20 +1295,9 @@ def orden_pdf(po):
     path = os.path.join("ordenes_pdf", f"{po}.pdf")
     c = canvas.Canvas(path, pagesize=letter)
 
-    # LOGO
     logo_path = os.path.join("static", "img", "YE.png")
     if os.path.exists(logo_path):
-        c.drawImage(
-            logo_path,
-            45,
-            675,
-            width=120,
-            height=100,
-            preserveAspectRatio=True,
-            mask="auto"
-        )
-
-    # ENCABEZADO IZQUIERDO
+        c.drawImage(logo_path, 45, 675, width=120, height=100, preserveAspectRatio=True, mask="auto")
 
     y = 650
     c.setFont("Helvetica-Bold", 18)
@@ -1322,8 +1310,8 @@ def orden_pdf(po):
     c.drawString(45, y, "Teléfono: 7825-6818")
     y -= 12
     c.drawString(45, y, "Rivas, Tola, El Palmar")
+    y -= 35
 
-    # ENCABEZADO DERECHO
     c.setFont("Helvetica", 20)
     c.drawRightString(550, 745, "Orden de Compra")
 
@@ -1333,7 +1321,6 @@ def orden_pdf(po):
     c.setFont("Helvetica", 9)
     c.drawRightString(550, 710, str(orden["fecha"]))
 
-    # TOTAL GRANDE
     subtotal = sum(float(d["subtotal"] or 0) for d in detalles)
     iva = 0
     total = subtotal
@@ -1350,25 +1337,25 @@ def orden_pdf(po):
 
     # MEMO
     c.setFillColorRGB(0.92, 0.92, 0.92)
-    c.rect(45, 560, 505, 45, fill=1, stroke=0)
+    c.rect(45, y - 45, 505, 45, fill=1, stroke=0)
 
     c.setFillColorRGB(0, 0, 0)
     c.setFont("Helvetica-Bold", 8)
-    c.drawString(55, 590, "MEMO")
+    c.drawString(55, y - 15, "MEMO")
 
     c.setFont("Helvetica", 8)
     memo = orden["memo"] or "RELLENO PARA ALMACEN"
-    c.drawString(55, 575, str(memo)[:90])
+    c.drawString(55, y - 30, str(memo)[:90])
+
+    y -= 80
 
     # DATOS GENERALES
-    y = 525
     c.setFillColorRGB(0.82, 0.82, 0.82)
     c.rect(45, y, 505, 18, fill=1, stroke=0)
 
     c.setFillColorRGB(0, 0, 0)
     c.setFont("Helvetica-Bold", 8)
 
-    # Encabezados ajustados
     c.drawString(55, y + 5, "PO")
     c.drawString(155, y + 5, "Comprador")
     c.drawString(255, y + 5, "Proveedor")
@@ -1377,12 +1364,9 @@ def orden_pdf(po):
     y -= 20
 
     c.setFont("Helvetica", 9)
-
-    # Datos generales
     c.drawString(55, y + 5, str(orden["po"]))
     c.drawString(155, y + 5, session.get("usuario", "Administrador"))
 
-    # Proveedor ajustado
     proveedor = str(orden["proveedor"] or "")
     lineas_proveedor = wrap(proveedor, width=32)
 
@@ -1391,20 +1375,20 @@ def orden_pdf(po):
         c.drawString(255, yy, linea)
         yy -= 10
 
-    # Fecha alineada a la derecha para que no se junte
     c.drawRightString(545, y + 5, str(orden["fecha"]))
 
-    # Espacio dinámico debajo del proveedor
     y -= max(40, len(lineas_proveedor) * 12)
 
-    # TABLA PRODUCTOS - SOLO PRECIO DE COMPRA EN PDF
+    # TABLA PRODUCTOS
     c.setFillColorRGB(0.82, 0.82, 0.82)
     c.rect(45, y, 505, 20, fill=1, stroke=0)
 
     c.setFillColorRGB(0, 0, 0)
     c.setFont("Helvetica-Bold", 7)
-    c.drawString(55, y + 6, "Artículo")
-    c.drawString(300, y + 6, "Cant.")
+
+    c.drawString(55, y + 6, "Código")
+    c.drawString(105, y + 6, "Artículo")
+    c.drawString(310, y + 6, "Cant.")
     c.drawString(380, y + 6, "Precio")
     c.drawString(470, y + 6, "Valor")
 
@@ -1416,13 +1400,18 @@ def orden_pdf(po):
             c.showPage()
             y = 750
 
+        codigo = int(d["producto_id"] or 0)
+        codigo_texto = str(codigo).zfill(4) if codigo > 0 else "0000"
+
         unidad = d["unidad"] or "UND"
         producto = str(d["producto"] or "")
-        lineas = wrap(producto, width=45)
+        lineas = wrap(producto, width=38)
+
+        c.drawString(55, y, codigo_texto)
 
         yy = y
         for linea in lineas:
-            c.drawString(55, yy, linea)
+            c.drawString(105, yy, linea)
             yy -= 10
 
         c.drawRightString(340, y, f"{d['cantidad']} {unidad}")
@@ -1452,7 +1441,6 @@ def orden_pdf(po):
     c.drawString(375, y - 50, "Total")
     c.drawRightString(540, y - 50, f"C${total:,.2f}")
 
-    # RECIBIDO
     if orden["recibido_por"]:
         c.setFont("Helvetica", 9)
         c.drawString(55, 90, f"Recibido por: {orden['recibido_por']}")
