@@ -3,6 +3,24 @@
 
 <h2 class="page-title">FACTURACIÓN</h2>
 
+<div class="form-card mb-3">
+  <h5 class="section-title">Opciones de Facturación</h5>
+
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('ventas') }}" class="btn btn-success">
+      Nueva Venta
+    </a>
+
+    <a href="{{ url_for('nueva_proforma') }}" class="btn btn-warning">
+      Nueva Proforma
+    </a>
+
+    <a href="{{ url_for('proformas') }}" class="btn btn-dark">
+      Ver Proformas
+    </a>
+  </div>
+</div>
+
 <form method="post" class="ventas-form" id="ventaForm" target="_blank">
 
   <div class="form-card mb-3">
