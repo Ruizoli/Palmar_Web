@@ -959,26 +959,34 @@ def orden_pdf(po):
 
     c.setFillColorRGB(0, 0, 0)
     c.setFont("Helvetica-Bold", 8)
+
+    # Encabezados ajustados
     c.drawString(55, y + 5, "PO")
-    c.drawString(185, y + 5, "Comprador")
-    c.drawString(290, y + 5, "Proveedor")
-    c.drawString(455, y + 5, "Fecha")
+    c.drawString(155, y + 5, "Comprador")
+    c.drawString(255, y + 5, "Proveedor")
+    c.drawString(500, y + 5, "Fecha")
 
     y -= 20
 
     c.setFont("Helvetica", 9)
-    c.drawString(55, y + 5, str(orden["po"]))
-    c.drawString(185, y + 5, session.get("usuario", "Administrador"))
 
+    # Datos generales
+    c.drawString(55, y + 5, str(orden["po"]))
+    c.drawString(155, y + 5, session.get("usuario", "Administrador"))
+
+    # Proveedor ajustado
     proveedor = str(orden["proveedor"] or "")
     lineas_proveedor = wrap(proveedor, width=32)
+
     yy = y + 5
     for linea in lineas_proveedor:
-        c.drawString(290, yy, linea)
+        c.drawString(255, yy, linea)
         yy -= 10
 
-    c.drawString(455, y + 5, str(orden["fecha"]))
+    # Fecha alineada a la derecha para que no se junte
+    c.drawRightString(545, y + 5, str(orden["fecha"]))
 
+    # Espacio dinámico debajo del proveedor
     y -= max(40, len(lineas_proveedor) * 12)
 
     # TABLA PRODUCTOS - SOLO PRECIO DE COMPRA EN PDF
