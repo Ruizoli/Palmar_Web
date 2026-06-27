@@ -259,8 +259,14 @@ def productos():
         LEFT JOIN categorias c ON p.categoria_id = c.id
     """
     if q:
-        sql += " WHERE p.nombre LIKE ? OR c.nombre LIKE ?"
-        params = [f"%{q}%", f"%{q}%"]
+        q_limpio = q.lstrip("0") or "0"
+
+        sql += """
+            WHERE p.nombre LIKE ?
+            OR c.nombre LIKE ?
+            OR CAST(p.id AS TEXT) LIKE ?
+        """
+        params = [f"%{q}%", f"%{q}%", f"%{q_limpio}%"]
     sql += " ORDER BY p.nombre"
     rows = fetch_all(sql, tuple(params))
 
