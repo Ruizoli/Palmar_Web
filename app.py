@@ -620,7 +620,7 @@ def proformas():
     return render_template("proformas.html", proformas=rows)
 
 
-    @app.route("/proformas/<int:proforma_id>/pdf")
+@app.route("/proformas/<int:proforma_id>/pdf")
 @login_required
 def proforma_pdf(proforma_id):
     proforma = fetch_one("""
