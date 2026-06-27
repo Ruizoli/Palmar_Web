@@ -250,6 +250,7 @@ def eliminar_cliente(id):
 @login_required
 def productos():
     q = request.args.get("q", "").strip()
+    print("BUSCANDO:", q)
     params = []
     sql = """
         SELECT p.id, p.nombre, p.precio, p.stock, p.unidad, p.categoria_id,
@@ -262,11 +263,21 @@ def productos():
         q_limpio = q.lstrip("0") or "0"
 
         sql += """
-            WHERE p.nombre LIKE ?
-            OR c.nombre LIKE ?
-            OR CAST(p.id AS TEXT) LIKE ?
+            WHERE
+                UPPER(p.nombre) LIKE UPPER(?)
+                OR UPPER(c.nombre) LIKE UPPER(?)
+                OR UPPER(p.unidad) LIKE UPPER(?)
+                OR CAST(p.id AS TEXT) = ?
+                OR LPAD(CAST(p.id AS TEXT),4,'0') = ?
         """
-        params = [f"%{q}%", f"%{q}%", f"%{q_limpio}%"]
+
+        params = (
+            f"%{q}%",
+            f"%{q}%",
+            f"%{q}%",
+            q_limpio,
+            q
+        )
     sql += " ORDER BY p.nombre"
     rows = fetch_all(sql, tuple(params))
 
