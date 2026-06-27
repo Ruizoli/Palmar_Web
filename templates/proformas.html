@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h2 class="page-title">GESTIÓN DE PROFORMAS</h2>
+
+<div class="form-card mb-3">
+  <h5 class="section-title">Opciones</h5>
+
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('ventas') }}" class="btn btn-success">
+      Nueva Venta
+    </a>
+
+    <a href="{{ url_for('nueva_proforma') }}" class="btn btn-warning">
+      Nueva Proforma
+    </a>
+
+    <a href="{{ url_for('proformas') }}" class="btn btn-dark">
+      Ver Proformas
+    </a>
+  </div>
+</div>
+
+<div class="form-card">
+  <h5 class="section-title">Listado de Proformas</h5>
+
+  <div class="table-responsive">
+    <table class="table table-bordered align-middle">
+      <thead>
+        <tr>
+          <th>N° Proforma</th>
+          <th>Fecha</th>
+          <th>Cliente</th>
+          <th>Total</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {% for p in proformas %}
+        <tr>
+          <td>{{ p.numero }}</td>
+          <td>{{ p.fecha }}</td>
+          <td>{{ p.cliente|upper }}</td>
+          <td>C${{ "%.2f"|format(p.total|float) }}</td>
+          <td>
+            {% if p.estado == 'Pendiente' %}
+              <span class="badge bg-warning text-dark">Pendiente</span>
+            {% elif p.estado == 'Convertida' %}
+              <span class="badge bg-success">Convertida</span>
+            {% else %}
+              <span class="badge bg-secondary">{{ p.estado }}</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="5" class="text-center text-muted">
+            No hay proformas registradas.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
