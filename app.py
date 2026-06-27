@@ -266,17 +266,17 @@ def productos():
             WHERE
                 UPPER(p.nombre) LIKE UPPER(?)
                 OR UPPER(c.nombre) LIKE UPPER(?)
-                OR UPPER(p.unidad) LIKE UPPER(?)
-                OR CAST(p.id AS TEXT) = ?
-                OR LPAD(CAST(p.id AS TEXT),4,'0') = ?
+                OR UPPER(COALESCE(p.unidad, '')) LIKE UPPER(?)
+                OR CAST(p.id AS TEXT) LIKE ?
+                OR LPAD(CAST(p.id AS TEXT), 4, '0') LIKE ?
         """
 
         params = (
             f"%{q}%",
             f"%{q}%",
             f"%{q}%",
-            q_limpio,
-            q
+            f"%{q_limpio}%",
+            f"%{q}%"
         )
     sql += " ORDER BY p.nombre"
     rows = fetch_all(sql, tuple(params))
