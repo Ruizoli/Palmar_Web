@@ -510,6 +510,115 @@ def ventas():
         fecha_hoy=datetime.now().strftime("%d/%m/%Y")
     )
 
+@app.route("/proformas/nueva", methods=["GET", "POST"])
+@login_required
+def nueva_proforma():
+    productos = fetch_all("""
+        SELECT id, nombre, precio, stock, unidad
+        FROM productos
+        WHERE stock > 0
+        ORDER BY nombre
+    """)
+
+    empleados = fetch_all("""
+        SELECT id, nombre, apellido
+        FROM empleados
+        WHERE estado='Activo'
+        ORDER BY nombre
+    """)
+
+    clientes = fetch_all("""
+        SELECT id, nombre
+        FROM clientes
+        ORDER BY nombre
+    """)
+
+    if request.method == "POST":
+        detalle_json = request.form.get("detalle_json", "[]")
+        empleado_id = request.form.get("empleado_id") or None
+        cliente_id = request.form.get("cliente_id") or None
+        observacion = request.form.get("observacion") or ""
+
+        try:
+            detalle = json.loads(detalle_json)
+        except Exception:
+            detalle = []
+
+        if not detalle:
+            flash("Agrega al menos un producto a la proforma", "warning")
+            return redirect(url_for("nueva_proforma"))
+
+        total = sum(float(item.get("subtotal", 0)) for item in detalle)
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        try:
+            nuevo_id = int(execute_scalar("SELECT COALESCE(MAX(id),0)+1 FROM proformas") or 1)
+            numero = f"PRO-{nuevo_id:04d}"
+
+            cursor.execute("""
+                INSERT INTO proformas(numero, cliente_id, empleado_id, observacion, total, estado)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (numero, cliente_id, empleado_id, observacion, total, "Pendiente"))
+
+            proforma_id = cursor.fetchone()["id"]
+
+            for item in detalle:
+                cursor.execute("""
+                    INSERT INTO proforma_detalle(
+                        proforma_id, producto_id, cantidad, precio, subtotal
+                    )
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (
+                    proforma_id,
+                    item.get("producto_id"),
+                    int(item.get("cantidad", 0)),
+                    float(item.get("precio", 0)),
+                    float(item.get("subtotal", 0))
+                ))
+
+            conn.commit()
+            flash(f"Proforma {numero} guardada correctamente", "success")
+            return redirect(url_for("proformas"))
+
+        except Exception as e:
+            conn.rollback()
+            flash(str(e), "danger")
+
+        finally:
+            conn.close()
+
+    proforma_numero = f"PRO-{int(execute_scalar('SELECT COALESCE(MAX(id),0)+1 FROM proformas') or 1):04d}"
+
+    return render_template(
+        "proforma.html",
+        productos=productos,
+        empleados=empleados,
+        clientes=clientes,
+        factura_numero=proforma_numero,
+        fecha_hoy=datetime.now().strftime("%d/%m/%Y")
+    )
+
+@app.route("/proformas")
+@login_required
+def proformas():
+    rows = fetch_all("""
+        SELECT 
+            p.id,
+            p.numero,
+            p.fecha,
+            p.total,
+            p.estado,
+            COALESCE(c.nombre, 'Cliente general') AS cliente
+        FROM proformas p
+        LEFT JOIN clientes c ON p.cliente_id = c.id
+        ORDER BY p.id DESC
+    """)
+
+    return render_template("proformas.html", proformas=rows)
+
 @app.route("/factura/<int:venta_id>.pdf")
 @login_required
 def factura_pdf(venta_id):
