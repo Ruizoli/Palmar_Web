@@ -619,6 +619,263 @@ def proformas():
 
     return render_template("proformas.html", proformas=rows)
 
+
+    @app.route("/proformas/<int:proforma_id>/pdf")
+@login_required
+def proforma_pdf(proforma_id):
+    proforma = fetch_one("""
+        SELECT 
+            p.id,
+            p.numero,
+            p.fecha,
+            p.total,
+            p.estado,
+            p.observacion,
+            COALESCE(c.nombre, 'Cliente general') AS cliente,
+            COALESCE(e.nombre, '') AS empleado_nombre,
+            COALESCE(e.apellido, '') AS empleado_apellido
+        FROM proformas p
+        LEFT JOIN clientes c ON p.cliente_id = c.id
+        LEFT JOIN empleados e ON p.empleado_id = e.id
+        WHERE p.id=?
+    """, (proforma_id,))
+
+    detalles = fetch_all("""
+        SELECT 
+            d.producto_id,
+            COALESCE(pr.nombre, 'Producto') AS producto,
+            COALESCE(pr.unidad, 'UND') AS unidad,
+            d.cantidad,
+            d.precio,
+            d.subtotal
+        FROM proforma_detalle d
+        LEFT JOIN productos pr ON d.producto_id = pr.id
+        WHERE d.proforma_id=?
+    """, (proforma_id,))
+
+    if not proforma:
+        flash("Proforma no encontrada", "danger")
+        return redirect(url_for("proformas"))
+
+    os.makedirs("proformas_pdf", exist_ok=True)
+    path = os.path.join("proformas_pdf", f"{proforma['numero']}.pdf")
+
+    c = canvas.Canvas(path, pagesize=letter)
+
+    c.setFont("Helvetica-Bold", 18)
+    c.drawString(45, 750, "FERRETERÍA YAMILON")
+
+    c.setFont("Helvetica", 9)
+    c.drawString(45, 735, "YAMIL ENRIQUE RUIZ CAMACHO")
+    c.drawString(45, 722, "Teléfono: 7825-6818")
+    c.drawString(45, 709, "Rivas, Tola, El Palmar")
+
+    c.setFont("Helvetica-Bold", 17)
+    c.drawRightString(550, 750, "PROFORMA")
+
+    c.setFont("Helvetica-Bold", 11)
+    c.drawRightString(550, 730, f"#{proforma['numero']}")
+
+    c.setFont("Helvetica", 9)
+    c.drawRightString(550, 715, str(proforma["fecha"])[:10])
+
+    y = 675
+
+    c.setFillColorRGB(0.82, 0.82, 0.82)
+    c.rect(45, y, 505, 20, fill=1, stroke=0)
+
+    c.setFillColorRGB(0, 0, 0)
+    c.setFont("Helvetica-Bold", 8)
+    c.drawString(55, y + 7, "Cliente")
+    c.drawString(270, y + 7, "Vendedor")
+    c.drawString(430, y + 7, "Estado")
+
+    y -= 22
+
+    vendedor = f"{proforma['empleado_nombre']} {proforma['empleado_apellido']}".strip()
+
+    c.setFont("Helvetica", 9)
+    c.drawString(55, y + 7, str(proforma["cliente"])[:35])
+    c.drawString(270, y + 7, vendedor or "No registrado")
+    c.drawString(430, y + 7, proforma["estado"])
+
+    y -= 45
+
+    c.setFillColorRGB(0.82, 0.82, 0.82)
+    c.rect(45, y, 505, 22, fill=1, stroke=0)
+
+    c.setFillColorRGB(0, 0, 0)
+    c.setFont("Helvetica-Bold", 8)
+    c.drawString(55, y + 8, "Producto")
+    c.drawString(300, y + 8, "Cant.")
+    c.drawString(380, y + 8, "Precio")
+    c.drawString(470, y + 8, "Subtotal")
+
+    y -= 24
+
+    c.setFont("Helvetica", 8)
+    subtotal_general = 0
+
+    for d in detalles:
+        if y < 160:
+            c.showPage()
+            y = 750
+
+        subtotal_general += float(d["subtotal"] or 0)
+
+        producto = str(d["producto"] or "")
+        lineas = wrap(producto, width=45)
+
+        yy = y
+        for linea in lineas:
+            c.drawString(55, yy, linea)
+            yy -= 10
+
+        unidad = d["unidad"] or "UND"
+        c.drawRightString(340, y, f"{d['cantidad']} {unidad}")
+        c.drawRightString(430, y, f"C${float(d['precio'] or 0):,.2f}")
+        c.drawRightString(540, y, f"C${float(d['subtotal'] or 0):,.2f}")
+
+        y -= max(22, len(lineas) * 12)
+
+    iva = 0
+    total = subtotal_general
+
+    y -= 15
+
+    c.setFillColorRGB(0.88, 0.88, 0.88)
+    c.rect(360, y - 65, 190, 75, fill=1, stroke=0)
+
+    c.setFillColorRGB(0, 0, 0)
+    c.setFont("Helvetica-Bold", 9)
+
+    c.drawString(375, y - 5, "Subtotal")
+    c.drawRightString(540, y - 5, f"C${subtotal_general:,.2f}")
+
+    c.drawString(375, y - 27, "IVA 0%")
+    c.drawRightString(540, y - 27, f"C${iva:,.2f}")
+
+    c.drawString(375, y - 50, "Total")
+    c.drawRightString(540, y - 50, f"C${total:,.2f}")
+
+    observacion = proforma["observacion"] or ""
+    if observacion.strip():
+        c.setFont("Helvetica-Bold", 9)
+        c.drawString(45, 115, "OBSERVACIONES:")
+        c.setFont("Helvetica", 8)
+        c.drawString(45, 100, observacion[:100])
+
+    c.setFont("Helvetica", 8)
+    c.drawString(45, 60, "Esta proforma no representa una factura fiscal. Es una cotización para el cliente.")
+
+    c.save()
+    return send_file(path, as_attachment=False)
+
+
+@app.route("/proformas/<int:proforma_id>/convertir", methods=["POST"])
+@login_required
+def convertir_proforma(proforma_id):
+    proforma = fetch_one("""
+        SELECT id, cliente_id, empleado_id, observacion, total, estado
+        FROM proformas
+        WHERE id=?
+    """, (proforma_id,))
+
+    if not proforma:
+        flash("Proforma no encontrada", "danger")
+        return redirect(url_for("proformas"))
+
+    if proforma["estado"] != "Pendiente":
+        flash("Esta proforma ya fue convertida o anulada", "warning")
+        return redirect(url_for("proformas"))
+
+    detalles = fetch_all("""
+        SELECT producto_id, cantidad, precio, subtotal
+        FROM proforma_detalle
+        WHERE proforma_id=?
+    """, (proforma_id,))
+
+    if not detalles:
+        flash("La proforma no tiene productos", "danger")
+        return redirect(url_for("proformas"))
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        total = 0
+        items = []
+
+        for d in detalles:
+            producto_id = d["producto_id"]
+            cantidad = int(d["cantidad"])
+
+            cursor.execute("""
+                SELECT id, nombre, precio, stock
+                FROM productos
+                WHERE id=%s
+            """, (producto_id,))
+
+            p = cursor.fetchone()
+
+            if not p:
+                raise Exception("Producto no encontrado")
+
+            if int(p["stock"]) < cantidad:
+                raise Exception(f"Stock insuficiente para {p['nombre']}. Disponible: {p['stock']}")
+
+            precio = float(d["precio"] or p["precio"])
+            subtotal = precio * cantidad
+            total += subtotal
+
+            items.append((producto_id, cantidad, precio, subtotal, p["nombre"]))
+
+        cursor.execute("""
+            INSERT INTO ventas(fecha, total, empleado_id, cliente_id, observacion)
+            VALUES (CURRENT_TIMESTAMP, %s, %s, %s, %s)
+            RETURNING id
+        """, (
+            total,
+            proforma["empleado_id"],
+            proforma["cliente_id"],
+            proforma["observacion"]
+        ))
+
+        venta_id = cursor.fetchone()["id"]
+
+        for producto_id, cantidad, precio, subtotal, nombre in items:
+            cursor.execute("""
+                UPDATE productos
+                SET stock = stock - %s
+                WHERE id = %s AND stock >= %s
+            """, (cantidad, producto_id, cantidad))
+
+            if cursor.rowcount == 0:
+                raise Exception(f"No se pudo descontar stock de {nombre}")
+
+            cursor.execute("""
+                INSERT INTO detalle_venta(venta_id, producto_id, cantidad, precio, subtotal)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (venta_id, producto_id, cantidad, precio, subtotal))
+
+        cursor.execute("""
+            UPDATE proformas
+            SET estado='Convertida'
+            WHERE id=%s
+        """, (proforma_id,))
+
+        conn.commit()
+        flash(f"Proforma convertida a factura #{venta_id}", "success")
+        return redirect(url_for("factura_pdf", venta_id=venta_id))
+
+    except Exception as e:
+        conn.rollback()
+        flash(str(e), "danger")
+        return redirect(url_for("proformas"))
+
+    finally:
+        conn.close()
+
 @app.route("/factura/<int:venta_id>.pdf")
 @login_required
 def factura_pdf(venta_id):

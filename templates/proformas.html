@@ -33,6 +33,7 @@
           <th>Cliente</th>
           <th>Total</th>
           <th>Estado</th>
+          <th>Acciones</th>
         </tr>
       </thead>
 
@@ -52,10 +53,30 @@
               <span class="badge bg-secondary">{{ p.estado }}</span>
             {% endif %}
           </td>
+
+          <td>
+            <a href="{{ url_for('proforma_pdf', proforma_id=p.id) }}"
+               class="btn btn-sm btn-dark"
+               target="_blank">
+              Imprimir
+            </a>
+
+            {% if p.estado == 'Pendiente' %}
+            <form action="{{ url_for('convertir_proforma', proforma_id=p.id) }}"
+                  method="post"
+                  style="display:inline;">
+              <button type="submit"
+                      class="btn btn-sm btn-success"
+                      onclick="return confirm('¿Convertir esta proforma en factura?')">
+                Convertir a Factura
+              </button>
+            </form>
+            {% endif %}
+          </td>
         </tr>
         {% else %}
         <tr>
-          <td colspan="5" class="text-center text-muted">
+          <td colspan="6" class="text-center text-muted">
             No hay proformas registradas.
           </td>
         </tr>
