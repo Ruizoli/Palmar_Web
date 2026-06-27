@@ -631,7 +631,7 @@ def proforma_pdf(proforma_id):
             p.total,
             p.estado,
             p.observacion,
-            COALESCE(c.nombre, 'Cliente general') AS cliente,
+            COALESCE(c.nombre, 'CLIENTE GENERAL') AS cliente_nombre,
             COALESCE(e.nombre, '') AS empleado_nombre,
             COALESCE(e.apellido, '') AS empleado_apellido
         FROM proformas p
@@ -642,14 +642,14 @@ def proforma_pdf(proforma_id):
 
     detalles = fetch_all("""
         SELECT 
-            d.producto_id,
-            COALESCE(pr.nombre, 'Producto') AS producto,
-            COALESCE(pr.unidad, 'UND') AS unidad,
+            pr.id AS producto_id,
+            pr.nombre,
+            pr.unidad,
             d.cantidad,
             d.precio,
             d.subtotal
         FROM proforma_detalle d
-        LEFT JOIN productos pr ON d.producto_id = pr.id
+        INNER JOIN productos pr ON d.producto_id = pr.id
         WHERE d.proforma_id=?
     """, (proforma_id,))
 
@@ -658,58 +658,77 @@ def proforma_pdf(proforma_id):
         return redirect(url_for("proformas"))
 
     os.makedirs("proformas_pdf", exist_ok=True)
-    path = os.path.join("proformas_pdf", f"{proforma['numero']}.pdf")
 
+    path = os.path.join("proformas_pdf", f"{proforma['numero']}.pdf")
     c = canvas.Canvas(path, pagesize=letter)
 
+    logo_path = os.path.join("static", "img", "YE.png")
+    if os.path.exists(logo_path):
+        c.drawImage(
+            logo_path,
+            40,
+            705,
+            width=85,
+            height=70,
+            preserveAspectRatio=True,
+            mask="auto"
+        )
+
     c.setFont("Helvetica-Bold", 18)
-    c.drawString(45, 750, "FERRETERÍA YAMILON")
+    c.drawString(135, 755, "FERRETERÍA YAMILON")
 
     c.setFont("Helvetica", 9)
-    c.drawString(45, 735, "YAMIL ENRIQUE RUIZ CAMACHO")
-    c.drawString(45, 722, "Teléfono: 7825-6818")
-    c.drawString(45, 709, "Rivas, Tola, El Palmar")
+    c.drawString(135, 740, "Sistema de Facturación e Inventario")
+    c.drawString(135, 727, "Rivas, Tola, El Palmar")
+    c.drawString(135, 714, "Tel: 7825-6818")
 
-    c.setFont("Helvetica-Bold", 17)
-    c.drawRightString(550, 750, "PROFORMA")
+    c.setFont("Helvetica-Bold", 16)
+    c.drawRightString(550, 755, "Proforma de Venta")
 
     c.setFont("Helvetica-Bold", 11)
-    c.drawRightString(550, 730, f"#{proforma['numero']}")
+    c.drawRightString(550, 737, f"#{proforma['numero']}")
 
+    fecha = str(proforma["fecha"])[:10]
     c.setFont("Helvetica", 9)
-    c.drawRightString(550, 715, str(proforma["fecha"])[:10])
+    c.drawRightString(550, 722, fecha)
 
-    y = 675
+    cliente = proforma["cliente_nombre"] or "CLIENTE GENERAL"
+
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(40, 685, f"CLIENTE: {cliente}")
+
+    y = 650
 
     c.setFillColorRGB(0.82, 0.82, 0.82)
-    c.rect(45, y, 505, 20, fill=1, stroke=0)
+    c.rect(40, y, 520, 20, fill=1, stroke=0)
 
     c.setFillColorRGB(0, 0, 0)
     c.setFont("Helvetica-Bold", 8)
-    c.drawString(55, y + 7, "Cliente")
-    c.drawString(270, y + 7, "Vendedor")
-    c.drawString(430, y + 7, "Estado")
+    c.drawString(50, y + 7, "Proforma")
+    c.drawString(200, y + 7, "Fecha")
+    c.drawString(380, y + 7, "Vendedor")
 
     y -= 22
 
-    vendedor = f"{proforma['empleado_nombre']} {proforma['empleado_apellido']}".strip()
+    vendedor = f"{proforma['empleado_nombre'] or ''} {proforma['empleado_apellido'] or ''}".strip()
 
     c.setFont("Helvetica", 9)
-    c.drawString(55, y + 7, str(proforma["cliente"])[:35])
-    c.drawString(270, y + 7, vendedor or "No registrado")
-    c.drawString(430, y + 7, proforma["estado"])
+    c.drawString(50, y + 7, str(proforma["numero"]))
+    c.drawString(200, y + 7, fecha)
+    c.drawString(380, y + 7, vendedor or "No registrado")
 
     y -= 45
 
     c.setFillColorRGB(0.82, 0.82, 0.82)
-    c.rect(45, y, 505, 22, fill=1, stroke=0)
+    c.rect(40, y, 520, 22, fill=1, stroke=0)
 
     c.setFillColorRGB(0, 0, 0)
     c.setFont("Helvetica-Bold", 8)
-    c.drawString(55, y + 8, "Producto")
-    c.drawString(300, y + 8, "Cant.")
-    c.drawString(380, y + 8, "Precio")
-    c.drawString(470, y + 8, "Subtotal")
+    c.drawString(50, y + 8, "Código")
+    c.drawString(105, y + 8, "Descripción")
+    c.drawString(310, y + 8, "Cant")
+    c.drawString(360, y + 8, "Precio")
+    c.drawString(455, y + 8, "Total Neto")
 
     y -= 24
 
@@ -717,60 +736,66 @@ def proforma_pdf(proforma_id):
     subtotal_general = 0
 
     for d in detalles:
-        if y < 160:
+        if y < 180:
             c.showPage()
             y = 750
 
         subtotal_general += float(d["subtotal"] or 0)
 
-        producto = str(d["producto"] or "")
-        lineas = wrap(producto, width=45)
+        nombre_producto = str(d["nombre"])
+        lineas = wrap(nombre_producto, width=38)
 
-        yy = y
+        c.drawString(50, y, str(d["producto_id"]).zfill(4))
+
+        y_linea = y
         for linea in lineas:
-            c.drawString(55, yy, linea)
-            yy -= 10
+            c.drawString(105, y_linea, linea)
+            y_linea -= 10
 
         unidad = d["unidad"] or "UND"
-        c.drawRightString(340, y, f"{d['cantidad']} {unidad}")
-        c.drawRightString(430, y, f"C${float(d['precio'] or 0):,.2f}")
-        c.drawRightString(540, y, f"C${float(d['subtotal'] or 0):,.2f}")
+        c.drawRightString(330, y, f'{d["cantidad"]} {unidad}')
+        c.drawRightString(420, y, f"C${float(d['precio']):,.2f}")
+        c.drawRightString(550, y, f"C${float(d['subtotal']):,.2f}")
 
-        y -= max(22, len(lineas) * 12)
+        y -= max(24, len(lineas) * 12)
 
     iva = 0
     total = subtotal_general
+    y_totales = y - 20
 
-    y -= 15
-
-    c.setFillColorRGB(0.88, 0.88, 0.88)
-    c.rect(360, y - 65, 190, 75, fill=1, stroke=0)
+    c.setFillColorRGB(0.86, 0.86, 0.86)
+    c.rect(360, y_totales - 75, 200, 85, fill=1, stroke=0)
 
     c.setFillColorRGB(0, 0, 0)
     c.setFont("Helvetica-Bold", 9)
 
-    c.drawString(375, y - 5, "Subtotal")
-    c.drawRightString(540, y - 5, f"C${subtotal_general:,.2f}")
+    c.drawString(375, y_totales - 5, "Subtotal")
+    c.drawRightString(550, y_totales - 5, f"C${subtotal_general:,.2f}")
 
-    c.drawString(375, y - 27, "IVA 0%")
-    c.drawRightString(540, y - 27, f"C${iva:,.2f}")
+    c.drawString(375, y_totales - 28, "IVA 0%")
+    c.drawRightString(550, y_totales - 28, f"C${iva:,.2f}")
 
-    c.drawString(375, y - 50, "Total")
-    c.drawRightString(540, y - 50, f"C${total:,.2f}")
+    c.drawString(375, y_totales - 52, "Total")
+    c.drawRightString(550, y_totales - 52, f"C${total:,.2f}")
 
     observacion = proforma["observacion"] or ""
     if observacion.strip():
+        y_obs = 210
         c.setFont("Helvetica-Bold", 9)
-        c.drawString(45, 115, "OBSERVACIONES:")
+        c.drawString(40, y_obs, "OBSERVACIONES:")
+        y_obs -= 12
         c.setFont("Helvetica", 8)
-        c.drawString(45, 100, observacion[:100])
+        for linea in wrap(observacion, width=85):
+            c.drawString(40, y_obs, linea)
+            y_obs -= 10
 
+    c.setFont("Helvetica-Bold", 8)
+    c.drawString(40, 55, "NOTA:")
     c.setFont("Helvetica", 8)
-    c.drawString(45, 60, "Esta proforma no representa una factura fiscal. Es una cotización para el cliente.")
+    c.drawString(75, 55, "Este documento es una proforma y no representa una factura fiscal.")
 
     c.save()
     return send_file(path, as_attachment=False)
-
 
 @app.route("/proformas/<int:proforma_id>/convertir", methods=["POST"])
 @login_required
