@@ -149,7 +149,7 @@
             {% for p in productos %}
 
             <tr class="fila-producto"
-                data-busqueda="{{ p.nombre }} {{ p.categoria }} {{ p.unidad or 'UND' }}"
+                data-busqueda="{{ p.id }} {{ '%04d'|format(p.id|int) }} {{ p.nombre }} {{ p.categoria }} {{ p.unidad or 'UND' }}"
                 data-stock="{{ p.stock or 0 }}"
                 data-invertido="{{ p.invertido or 0 }}">
 
