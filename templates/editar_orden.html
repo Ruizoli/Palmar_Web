@@ -1,6 +1,33 @@
 {% extends 'base.html' %}
 {% block content %}
 
+<style>
+.producto-box{
+    position:relative;
+}
+.lista-productos{
+    position:absolute;
+    top:42px;
+    left:0;
+    right:0;
+    background:white;
+    border:1px solid #ccc;
+    z-index:9999;
+    max-height:180px;
+    overflow-y:auto;
+    box-shadow:0 4px 10px rgba(0,0,0,.15);
+}
+.opcion-producto{
+    padding:8px 10px;
+    cursor:pointer;
+}
+.opcion-producto:hover{
+    background:#d4af37;
+    color:#111;
+    font-weight:bold;
+}
+</style>
+
 <div class="container-fluid">
 
     <h2 class="text-center fw-bold mb-4">
@@ -64,7 +91,14 @@
                         {% for d in detalles %}
                         <tr>
                             <td>
-                                <input class="form-control" name="producto[]" value="{{ d.producto }}" required>
+                                <div class="producto-box">
+                                    <input class="form-control producto-input"
+                                           name="producto[]"
+                                           value="{{ d.producto }}"
+                                           autocomplete="off"
+                                           required>
+                                    <div class="lista-productos"></div>
+                                </div>
                             </td>
 
                             <td>
@@ -76,7 +110,7 @@
                             </td>
 
                             <td>
-                                <input class="form-control" type="number" step="0.01" min="0" name="precio_venta[]" value="{{ d.precio_venta }}" required>
+                                <input class="form-control precio-venta" type="number" step="0.01" min="0" name="precio_venta[]" value="{{ d.precio_venta }}" required>
                             </td>
 
                             <td class="subtotal">
@@ -111,12 +145,14 @@
 <script>
 function agregarFila() {
     const tabla = document.getElementById("tablaProductos");
-
     const fila = document.createElement("tr");
 
     fila.innerHTML = `
         <td>
-            <input class="form-control" name="producto[]" placeholder="Nombre del producto" required>
+            <div class="producto-box">
+                <input class="form-control producto-input" name="producto[]" placeholder="Nombre del producto" autocomplete="off" required>
+                <div class="lista-productos"></div>
+            </div>
         </td>
 
         <td>
@@ -128,7 +164,7 @@ function agregarFila() {
         </td>
 
         <td>
-            <input class="form-control" type="number" step="0.01" min="0" name="precio_venta[]" value="0" required>
+            <input class="form-control precio-venta" type="number" step="0.01" min="0" name="precio_venta[]" value="0" required>
         </td>
 
         <td class="subtotal">
@@ -146,8 +182,7 @@ function agregarFila() {
 }
 
 function eliminarFila(btn) {
-    const fila = btn.closest("tr");
-    fila.remove();
+    btn.closest("tr").remove();
 }
 
 function calcularFila(input) {
@@ -158,6 +193,58 @@ function calcularFila(input) {
 
     fila.querySelector(".subtotal").textContent = "C$" + subtotal.toFixed(2);
 }
+
+document.addEventListener("input", async function(e) {
+    if (!e.target.classList.contains("producto-input")) return;
+
+    const input = e.target;
+    const valor = input.value.trim();
+    const fila = input.closest("tr");
+    const lista = fila.querySelector(".lista-productos");
+
+    if (valor.length < 1) {
+        lista.innerHTML = "";
+        return;
+    }
+
+    const res = await fetch(`/api/productos/buscar?q=${encodeURIComponent(valor)}`);
+    const data = await res.json();
+
+    if (!data.productos || data.productos.length === 0) {
+        lista.innerHTML = `<div class="opcion-producto">No encontrado</div>`;
+        return;
+    }
+
+    lista.innerHTML = data.productos.map(p => `
+        <div class="opcion-producto"
+             data-nombre="${p.nombre}"
+             data-precio="${p.precio}">
+            ${p.nombre} - Stock: ${p.stock} ${p.unidad}
+        </div>
+    `).join("");
+});
+
+document.addEventListener("click", function(e) {
+    if (!e.target.classList.contains("opcion-producto")) {
+        document.querySelectorAll(".lista-productos").forEach(l => l.innerHTML = "");
+        return;
+    }
+
+    const opcion = e.target;
+
+    if (opcion.textContent.trim() === "No encontrado") return;
+
+    const fila = opcion.closest("tr");
+
+    fila.querySelector(".producto-input").value = opcion.dataset.nombre;
+
+    const precioVenta = fila.querySelector(".precio-venta");
+    if (precioVenta && (!precioVenta.value || precioVenta.value == "0")) {
+        precioVenta.value = opcion.dataset.precio;
+    }
+
+    fila.querySelector(".lista-productos").innerHTML = "";
+});
 </script>
 
 {% endblock %}

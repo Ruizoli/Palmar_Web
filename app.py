@@ -1610,5 +1610,34 @@ def descargar_inventario_excel():
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
+
+
+@app.route("/api/productos/buscar")
+@login_required
+def buscar_productos_api():
+    q = request.args.get("q", "").strip()
+
+    productos = fetch_all("""
+        SELECT id, nombre, precio, stock, unidad
+        FROM productos
+        WHERE UPPER(nombre) LIKE UPPER(?)
+        ORDER BY nombre
+        LIMIT 10
+    """, (f"%{q}%",))
+
+    return {
+        "productos": [
+            {
+                "id": p["id"],
+                "nombre": p["nombre"],
+                "precio": float(p["precio"] or 0),
+                "stock": int(p["stock"] or 0),
+                "unidad": p["unidad"] or "UND"
+            }
+            for p in productos
+        ]
+    }
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
