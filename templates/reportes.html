@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="container-fluid">
+
+    <h2 class="text-center fw-bold mb-4">
+        REPORTES DEL SISTEMA
+    </h2>
+
+    <div class="row mb-4">
+
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-dark text-warning fw-bold">
+                    Reporte de Ventas
+                </div>
+                <div class="card-body">
+                    <p>Descarga todas las ventas realizadas en Excel.</p>
+
+                    <a href="{{ url_for('reportes_ventas_excel') }}" class="btn btn-success fw-bold">
+                        Descargar Ventas Excel
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-dark text-warning fw-bold">
+                    Auditoría del Sistema
+                </div>
+                <div class="card-body">
+                    <p>Descarga el historial de acciones realizadas por los usuarios.</p>
+
+                    <a href="{{ url_for('reportes_auditoria_excel') }}" class="btn btn-warning fw-bold">
+                        Descargar Auditoría Excel
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-dark text-warning fw-bold">
+            Últimos movimientos del sistema
+        </div>
+
+        <div class="card-body">
+            <table class="table table-bordered table-hover align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Usuario</th>
+                        <th>Acción</th>
+                        <th>Detalle</th>
+                        <th>Fecha</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for a in auditoria %}
+                    <tr>
+                        <td>{{ a.usuario }}</td>
+                        <td>{{ a.accion }}</td>
+                        <td>{{ a.detalle }}</td>
+                        <td>{{ a.fecha }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="text-center text-muted">
+                            No hay registros todavía.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}

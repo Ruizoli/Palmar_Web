@@ -44,6 +44,17 @@ def inject_user():
     return {"usuario_actual": session.get("usuario"), "rol_actual": session.get("rol")}
 
 
+def registrar_auditoria(accion, detalle=""):
+    try:
+        usuario = session.get("usuario", "Sistema")
+        execute("""
+            INSERT INTO auditoria(usuario, accion, detalle)
+            VALUES (?, ?, ?)
+        """, (usuario, accion, detalle))
+    except Exception as e:
+        print("Error auditoría:", e)
+
+
 # =========================
 # LOGIN
 # =========================
@@ -54,9 +65,12 @@ def login():
         password = request.form.get("password", "").strip()
         user = fetch_one("SELECT id, usuario, rol FROM usuarios WHERE usuario=? AND pass=?", (usuario, password))
         if user:
-            session["usuario"] = user["usuario"]
-            session["rol"] = user["rol"]
-            return redirect(url_for("dashboard"))
+        session["usuario"] = user["usuario"]
+        session["rol"] = user["rol"]
+
+        registrar_auditoria("Inicio de sesión", f"El usuario {user['usuario']} entró al sistema")
+
+        return redirect(url_for("dashboard"))
         flash("Usuario o contraseña incorrectos", "danger")
     return render_template("login.html")
 
@@ -1641,6 +1655,151 @@ def buscar_productos_api():
             for p in productos
         ]
     }
+
+@app.route("/reportes")
+@login_required
+@admin_required
+def reportes():
+    auditoria = fetch_all("""
+        SELECT id, usuario, accion, detalle, fecha
+        FROM auditoria
+        ORDER BY fecha DESC
+        LIMIT 100
+    """)
+
+    return render_template("reportes.html", auditoria=auditoria)
+
+
+@app.route("/reportes/ventas-excel")
+@login_required
+@admin_required
+def reportes_ventas_excel():
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from io import BytesIO
+
+    ventas = fetch_all("""
+        SELECT 
+            v.id AS factura,
+            v.fecha,
+            COALESCE(c.nombre, 'Cliente general') AS cliente,
+            COALESCE(e.nombre || ' ' || e.apellido, 'No registrado') AS vendedor,
+            p.nombre AS producto,
+            d.cantidad,
+            d.precio,
+            d.subtotal,
+            v.total
+        FROM ventas v
+        LEFT JOIN clientes c ON v.cliente_id = c.id
+        LEFT JOIN empleados e ON v.empleado_id = e.id
+        INNER JOIN detalle_venta d ON d.venta_id = v.id
+        INNER JOIN productos p ON p.id = d.producto_id
+        ORDER BY v.fecha DESC
+    """)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Ventas"
+
+    encabezados = [
+        "Factura", "Fecha", "Cliente", "Vendedor",
+        "Producto", "Cantidad", "Precio", "Subtotal", "Total Factura"
+    ]
+    ws.append(encabezados)
+
+    for cell in ws[1]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill("solid", fgColor="111111")
+        cell.alignment = Alignment(horizontal="center")
+
+    for v in ventas:
+        ws.append([
+            f"FACT-{int(v['factura']):04d}",
+            str(v["fecha"])[:19],
+            v["cliente"],
+            v["vendedor"],
+            v["producto"],
+            int(v["cantidad"] or 0),
+            float(v["precio"] or 0),
+            float(v["subtotal"] or 0),
+            float(v["total"] or 0)
+        ])
+
+    ws.column_dimensions["A"].width = 15
+    ws.column_dimensions["B"].width = 22
+    ws.column_dimensions["C"].width = 30
+    ws.column_dimensions["D"].width = 25
+    ws.column_dimensions["E"].width = 45
+    ws.column_dimensions["F"].width = 12
+    ws.column_dimensions["G"].width = 15
+    ws.column_dimensions["H"].width = 15
+    ws.column_dimensions["I"].width = 15
+
+    for row in ws.iter_rows(min_row=2, min_col=7, max_col=9):
+        for cell in row:
+            cell.number_format = 'C$#,##0.00'
+
+    archivo = BytesIO()
+    wb.save(archivo)
+    archivo.seek(0)
+
+    return send_file(
+        archivo,
+        as_attachment=True,
+        download_name="Reporte_Ventas.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+
+@app.route("/reportes/auditoria-excel")
+@login_required
+@admin_required
+def reportes_auditoria_excel():
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from io import BytesIO
+
+    registros = fetch_all("""
+        SELECT usuario, accion, detalle, fecha
+        FROM auditoria
+        ORDER BY fecha DESC
+    """)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Auditoria"
+
+    encabezados = ["Usuario", "Acción", "Detalle", "Fecha"]
+    ws.append(encabezados)
+
+    for cell in ws[1]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill("solid", fgColor="111111")
+        cell.alignment = Alignment(horizontal="center")
+
+    for r in registros:
+        ws.append([
+            r["usuario"],
+            r["accion"],
+            r["detalle"],
+            str(r["fecha"])[:19]
+        ])
+
+    ws.column_dimensions["A"].width = 25
+    ws.column_dimensions["B"].width = 30
+    ws.column_dimensions["C"].width = 70
+    ws.column_dimensions["D"].width = 22
+
+    archivo = BytesIO()
+    wb.save(archivo)
+    archivo.seek(0)
+
+    return send_file(
+        archivo,
+        as_attachment=True,
+        download_name="Reporte_Auditoria.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
 
 if __name__ == "__main__":
