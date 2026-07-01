@@ -719,18 +719,23 @@ def proforma_pdf(proforma_id):
 
     c.setFillColorRGB(0, 0, 0)
     c.setFont("Helvetica-Bold", 8)
-    c.drawString(50, y + 7, "Proforma")
-    c.drawString(200, y + 7, "Fecha")
-    c.drawString(380, y + 7, "Vendedor")
+
+    # Encabezados
+    c.drawString(50, y + 7, "Cliente")
+    c.drawString(290, y + 7, "Vendedor")
+    c.drawString(470, y + 7, "Fecha")
 
     y -= 22
 
+    cliente = proforma["cliente_nombre"] or "CLIENTE GENERAL"
     vendedor = f"{proforma['empleado_nombre'] or ''} {proforma['empleado_apellido'] or ''}".strip()
 
     c.setFont("Helvetica", 9)
-    c.drawString(50, y + 7, str(proforma["numero"]))
-    c.drawString(200, y + 7, fecha)
-    c.drawString(380, y + 7, vendedor or "No registrado")
+
+    # Datos
+    c.drawString(50, y + 7, cliente)
+    c.drawString(290, y + 7, vendedor or "No registrado")
+    c.drawRightString(545, y + 7, fecha)
 
     y -= 45
 
