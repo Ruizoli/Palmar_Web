@@ -95,6 +95,7 @@
     <table class="table table-sm">
       <thead>
         <tr>
+          <th>Día</th>
           <th>Fecha</th>
           <th>Cantidad de ventas</th>
           <th>Total vendido</th>
@@ -104,13 +105,14 @@
       <tbody>
         {% for v in datos.ventas_dias %}
         <tr>
+          <td>{{ v.dia_nombre }}</td>
           <td>{{ v.dia }}</td>
           <td>{{ v.cantidad }}</td>
           <td>C${{ '%.2f'|format(v.total or 0) }}</td>
         </tr>
         {% else %}
         <tr>
-          <td colspan="3">No hay ventas registradas en los últimos días.</td>
+          <td colspan="4">No hay ventas registradas en los últimos días.</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -141,7 +143,7 @@
           </td>
 
           <td>
-            {{ a.fecha if a.fecha else '' }}
+            {{ a.fecha[:10] if a.fecha else '' }}
           </td>
 
           <td>
