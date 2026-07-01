@@ -21,9 +21,22 @@
                 <td>{{ v.fecha }}</td>
                 <td>C${{ "%.2f"|format(v.total) }}</td>
                 <td>
-                    <a class="btn btn-primary btn-sm" target="_blank" href="{{ url_for('factura_pdf', venta_id=v.id) }}">
+                    <a class="btn btn-info btn-sm"
+                       href="{{ url_for('ver_factura', venta_id=v.id) }}">
+                        👁 Ver
+                    </a>
+
+                    <a class="btn btn-primary btn-sm"
+                       target="_blank"
+                       href="{{ url_for('factura_pdf', venta_id=v.id) }}">
                         🖨 Imprimir
                     </a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" class="text-center text-muted">
+                    No hay facturas registradas.
                 </td>
             </tr>
             {% endfor %}

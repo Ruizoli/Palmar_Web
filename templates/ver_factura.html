@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h2 class="page-title">Detalle de Factura FAC-{{ "%04d"|format(factura.id) }}</h2>
+
+<div class="card p-4 mb-3">
+    <div class="row">
+        <div class="col-md-4">
+            <strong>Cliente:</strong><br>
+            {{ factura.cliente }}
+        </div>
+
+        <div class="col-md-4">
+            <strong>Vendedor:</strong><br>
+            {{ factura.vendedor }}
+        </div>
+
+        <div class="col-md-4">
+            <strong>Fecha:</strong><br>
+            {{ factura.fecha }}
+        </div>
+    </div>
+</div>
+
+<div class="card p-3 table-responsive">
+    <table class="table align-middle">
+        <thead>
+            <tr>
+                <th>Código</th>
+                <th>Producto</th>
+                <th>Cantidad</th>
+                <th>Unidad</th>
+                <th>Precio</th>
+                <th>Subtotal</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for d in detalles %}
+            <tr>
+                <td>{{ "%04d"|format(d.producto_id) }}</td>
+                <td>{{ d.nombre }}</td>
+                <td>{{ d.cantidad }}</td>
+                <td>{{ d.unidad }}</td>
+                <td>C${{ "%.2f"|format(d.precio) }}</td>
+                <td>C${{ "%.2f"|format(d.subtotal) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="card p-4 mt-3" style="max-width:400px; margin-left:auto;">
+    <h4>Resumen</h4>
+    <p>Subtotal: <strong>C${{ "%.2f"|format(factura.total) }}</strong></p>
+    <p>IVA 0%: <strong>C$0.00</strong></p>
+    <h3>Total: C${{ "%.2f"|format(factura.total) }}</h3>
+</div>
+
+<div class="mt-3 d-flex gap-2">
+    <a href="{{ url_for('facturas') }}" class="btn btn-secondary">
+        Regresar
+    </a>
+
+    <a href="{{ url_for('factura_pdf', venta_id=factura.id) }}" target="_blank" class="btn btn-primary">
+        🖨 Imprimir PDF
+    </a>
+</div>
+
+{% endblock %}

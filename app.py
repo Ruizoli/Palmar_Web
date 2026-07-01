@@ -1010,6 +1010,47 @@ def convertir_proforma(proforma_id):
     finally:
         conn.close()
 
+@app.route("/factura/<int:venta_id>")
+@login_required
+def ver_factura(venta_id):
+    factura = fetch_one("""
+        SELECT 
+            v.id,
+            v.fecha,
+            v.total,
+            v.observacion,
+            COALESCE(c.nombre, 'CLIENTE GENERAL') AS cliente,
+            COALESCE(e.nombre || ' ' || e.apellido, 'No registrado') AS vendedor
+        FROM ventas v
+        LEFT JOIN clientes c ON v.cliente_id = c.id
+        LEFT JOIN empleados e ON v.empleado_id = e.id
+        WHERE v.id=?
+    """, (venta_id,))
+
+    detalles = fetch_all("""
+        SELECT 
+            p.id AS producto_id,
+            p.nombre,
+            p.unidad,
+            d.cantidad,
+            d.precio,
+            d.subtotal
+        FROM detalle_venta d
+        INNER JOIN productos p ON d.producto_id = p.id
+        WHERE d.venta_id=?
+    """, (venta_id,))
+
+    if not factura:
+        flash("Factura no encontrada", "danger")
+        return redirect(url_for("facturas"))
+
+    return render_template(
+        "ver_factura.html",
+        factura=factura,
+        detalles=detalles
+    )
+
+
 @app.route("/factura/<int:venta_id>.pdf")
 @login_required
 def factura_pdf(venta_id):
@@ -1060,13 +1101,11 @@ def factura_pdf(venta_id):
     c.drawString(135, 727, "Rivas, Tola, El Palmar")
     c.drawString(135, 714, "Tel: 7825-6818")
 
-    numero_factura = venta_id
-
     c.setFont("Helvetica-Bold", 16)
     c.drawRightString(550, 755, "Factura de Venta")
 
     c.setFont("Helvetica-Bold", 11)
-    c.drawRightString(550, 737, f"#FACT-{numero_factura:04d}")
+    c.drawRightString(550, 737, f"#FACT-{venta_id:04d}")
 
     c.setFont("Helvetica", 9)
     c.drawRightString(550, 722, venta["fecha"].strftime("%d/%m/%Y"))
@@ -1075,7 +1114,6 @@ def factura_pdf(venta_id):
 
     y = 650
 
-    # Encabezado gris
     c.setFillColorRGB(0.82, 0.82, 0.82)
     c.rect(40, y, 520, 20, fill=1, stroke=0)
 
@@ -1140,8 +1178,6 @@ def factura_pdf(venta_id):
 
     iva = 0
     total = subtotal_general
-
-    # TOTALES: quedan debajo de los productos
     y_totales = y - 20
 
     c.setFillColorRGB(0.86, 0.86, 0.86)
@@ -1156,7 +1192,6 @@ def factura_pdf(venta_id):
     c.drawString(375, y_totales - 52, "Total a Pagar")
     c.drawRightString(550, y_totales - 52, f"C${total:,.2f}")
 
-    # OBSERVACIONES: abajo y sin mover los totales
     observacion = venta["observacion"] or ""
     if observacion.strip():
         y_obs = 210
