@@ -122,6 +122,8 @@ def registro():
 
 @app.route("/logout")
 def logout():
+    usuario = session.get("usuario", "Usuario")
+    registrar_auditoria("Cierre de sesión", f"El usuario {usuario} salió del sistema")
     session.clear()
     return redirect(url_for("login"))
 
@@ -231,9 +233,14 @@ def dashboard():
 @login_required
 def clientes():
     if request.method == "POST":
+        nombre_cliente = request.form["nombre"].strip()
         execute("INSERT INTO clientes(nombre, cedula, telefono, correo) VALUES (?, ?, ?, ?)", (
-            request.form["nombre"], request.form.get("cedula"), request.form.get("telefono"), request.form.get("correo")
+            nombre_cliente, request.form.get("cedula"), request.form.get("telefono"), request.form.get("correo")
         ))
+        registrar_auditoria(
+            "Cliente creado",
+            f"{session.get('usuario')} registró el cliente {nombre_cliente}"
+        )
         flash("Cliente guardado correctamente", "success")
         return redirect(url_for("clientes"))
     q = request.args.get("q", "")
@@ -252,9 +259,14 @@ def clientes():
 @app.route("/clientes/<int:id>/editar", methods=["POST"])
 @login_required
 def editar_cliente(id):
+    nombre_cliente = request.form["nombre"].strip()
     execute("UPDATE clientes SET nombre=?, cedula=?, telefono=?, correo=? WHERE id=?", (
-        request.form["nombre"], request.form.get("cedula"), request.form.get("telefono"), request.form.get("correo"), id
+        nombre_cliente, request.form.get("cedula"), request.form.get("telefono"), request.form.get("correo"), id
     ))
+    registrar_auditoria(
+        "Cliente editado",
+        f"{session.get('usuario')} editó el cliente ID {id} ({nombre_cliente})"
+    )
     flash("Cliente actualizado", "success")
     return redirect(url_for("clientes"))
 
@@ -262,7 +274,12 @@ def editar_cliente(id):
 @app.route("/clientes/<int:id>/eliminar", methods=["POST"])
 @login_required
 def eliminar_cliente(id):
+    cliente = fetch_one("SELECT nombre FROM clientes WHERE id=?", (id,))
     execute("DELETE FROM clientes WHERE id=?", (id,))
+    registrar_auditoria(
+        "Cliente eliminado",
+        f"{session.get('usuario')} eliminó el cliente ID {id} ({cliente['nombre'] if cliente else 'Sin nombre'})"
+    )
     flash("Cliente eliminado", "success")
     return redirect(url_for("clientes"))
 
@@ -325,6 +342,10 @@ def categorias():
                 flash("Ingrese el nombre de la categoría", "warning")
             else:
                 execute("INSERT INTO categorias(nombre, descripcion) VALUES (?, ?)", (nombre, ""))
+                registrar_auditoria(
+                    "Categoría creada",
+                    f"{session.get('usuario')} creó la categoría {nombre}"
+                )
                 flash("Categoría agregada correctamente", "success")
             return redirect(url_for("categorias"))
 
@@ -345,6 +366,10 @@ def categorias():
                     stock,
                     unidad
                 )
+            )
+            registrar_auditoria(
+                "Producto creado",
+                f"{session.get('usuario')} creó el producto {nombre}"
             )
             flash("Producto guardado correctamente", "success")
         return redirect(url_for("categorias"))
@@ -391,6 +416,11 @@ def editar_producto(id):
         request.form.get("unidad", "UND"),
         id
     ))
+
+    registrar_auditoria(
+        "Producto editado",
+        f"{session.get('usuario')} editó el producto ID {id}"
+    )
     flash("Producto actualizado correctamente", "success")
     return redirect(request.form.get("next") or url_for("categorias"))
 
@@ -399,7 +429,12 @@ def editar_producto(id):
 @login_required
 @admin_required
 def eliminar_producto(id):
+    producto = fetch_one("SELECT nombre FROM productos WHERE id=?", (id,))
     execute("DELETE FROM productos WHERE id=?", (id,))
+    registrar_auditoria(
+        "Producto eliminado",
+        f"{session.get('usuario')} eliminó el producto ID {id} ({producto['nombre'] if producto else 'Sin nombre'})"
+    )
     flash("Producto eliminado correctamente", "success")
     return redirect(request.form.get("next") or url_for("categorias"))
 
@@ -413,10 +448,16 @@ def eliminar_producto(id):
 @admin_required
 def empleados():
     if request.method == "POST":
+        nombre_empleado = request.form["nombre"].strip()
+        apellido_empleado = request.form.get("apellido", "").strip()
         execute("""
             INSERT INTO empleados(nombre, apellido, cedula, telefono, cargo, salario, estado)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (request.form["nombre"], request.form.get("apellido"), request.form.get("cedula"), request.form.get("telefono"), request.form.get("cargo"), request.form.get("salario") or 0, request.form.get("estado", "Activo")))
+        """, (nombre_empleado, apellido_empleado, request.form.get("cedula"), request.form.get("telefono"), request.form.get("cargo"), request.form.get("salario") or 0, request.form.get("estado", "Activo")))
+        registrar_auditoria(
+            "Empleado creado",
+            f"{session.get('usuario')} registró el empleado {nombre_empleado} {apellido_empleado}"
+        )
         flash("Empleado guardado", "success")
         return redirect(url_for("empleados"))
     rows = fetch_all("SELECT id, nombre, apellido, cedula, telefono, cargo, salario, estado FROM empleados ORDER BY id DESC")
@@ -427,7 +468,13 @@ def empleados():
 @login_required
 @admin_required
 def eliminar_empleado(id):
+    empleado = fetch_one("SELECT nombre, apellido FROM empleados WHERE id=?", (id,))
     execute("DELETE FROM empleados WHERE id=?", (id,))
+    nombre = f"{empleado['nombre']} {empleado['apellido'] or ''}" if empleado else "Sin nombre"
+    registrar_auditoria(
+        "Empleado eliminado",
+        f"{session.get('usuario')} eliminó el empleado ID {id} ({nombre.strip()})"
+    )
     flash("Empleado eliminado", "success")
     return redirect(url_for("empleados"))
 
@@ -510,6 +557,12 @@ def ventas():
                 """, (venta_id, producto_id, cantidad, precio, subtotal))
 
             conn.commit()
+
+            registrar_auditoria(
+                "Venta realizada",
+                f"{session.get('usuario')} realizó la factura FACT-{venta_id:04d} por C${total_con_iva:,.2f}"
+            )
+
             flash(f"Venta #{venta_id} registrada correctamente", "success")
             return redirect(url_for("factura_pdf", venta_id=venta_id))
 
@@ -621,6 +674,12 @@ def nueva_proforma():
                 ))
 
             conn.commit()
+
+            registrar_auditoria(
+                "Proforma creada",
+                f"{session.get('usuario')} creó la proforma {numero} por C${total:,.2f}"
+            )
+
             flash(f"Proforma {numero} guardada correctamente", "success")
             return redirect(url_for("proformas"))
 
@@ -934,6 +993,12 @@ def convertir_proforma(proforma_id):
         """, (proforma_id,))
 
         conn.commit()
+
+        registrar_auditoria(
+            "Proforma convertida",
+            f"{session.get('usuario')} convirtió la proforma ID {proforma_id} a FACT-{venta_id:04d}"
+        )
+
         flash(f"Proforma convertida a factura #{venta_id}", "success")
         return redirect(url_for("factura_pdf", venta_id=venta_id))
 
@@ -1197,6 +1262,12 @@ def editar_orden(po):
                     VALUES (%s, %s, %s, %s, %s, %s)
                 """, (po, producto, cantidad, precio, precio_venta, subtotal))
             conn.commit()
+
+            registrar_auditoria(
+                "Orden editada",
+                f"{session.get('usuario')} editó la orden {po}"
+            )
+
             flash(f"Orden {po} actualizada correctamente", "success")
             return redirect(url_for("gestion_ordenes"))
 
@@ -1275,6 +1346,12 @@ def orden_compra():
                 """, (po, producto, cantidad, precio, precio_venta, subtotal))
 
             conn.commit()
+
+            registrar_auditoria(
+                "Orden creada",
+                f"{session.get('usuario')} creó la orden {po}"
+            )
+
             flash(f"Orden {po} guardada correctamente", "success")
             return redirect(url_for("gestion_ordenes"))
 
@@ -1529,6 +1606,12 @@ def recibir_orden(po):
         """, (po,))
 
         conn.commit()
+
+        registrar_auditoria(
+            "Orden recibida",
+            f"{session.get('usuario')} recibió la orden {po}. IR generado: {ir}"
+        )
+
         flash(f"Orden {po} recibida correctamente. IR generado: {ir}", "success")
 
     except Exception as e:
@@ -1550,6 +1633,11 @@ def cerrar_orden(po):
             SET estado='Cerrada'
             WHERE po=?
         """, (po,))
+
+        registrar_auditoria(
+            "Orden cerrada",
+            f"{session.get('usuario')} cerró la orden {po}"
+        )
 
         flash(f"Orden {po} cerrada correctamente", "success")
 
