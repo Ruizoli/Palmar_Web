@@ -135,15 +135,28 @@ def logout():
 @login_required
 def dashboard():
     ventas_7 = fetch_all("""
-        SELECT 
-            TO_CHAR((fecha AT TIME ZONE 'UTC' AT TIME ZONE 'America/Managua')::date, 'YYYY-MM-DD') AS dia,
-            COUNT(*) AS cantidad,
-            COALESCE(SUM(total), 0) AS total
-        FROM ventas
-        WHERE (fecha AT TIME ZONE 'UTC' AT TIME ZONE 'America/Managua')::date >=
-            ((CURRENT_TIMESTAMP AT TIME ZONE 'America/Managua')::date - INTERVAL '6 days')
-        GROUP BY (fecha AT TIME ZONE 'UTC' AT TIME ZONE 'America/Managua')::date
-        ORDER BY (fecha AT TIME ZONE 'UTC' AT TIME ZONE 'America/Managua')::date
+        SELECT
+            TO_CHAR(d.dia, 'YYYY-MM-DD') AS dia,
+            CASE EXTRACT(DOW FROM d.dia)
+                WHEN 0 THEN 'Dom'
+                WHEN 1 THEN 'Lun'
+                WHEN 2 THEN 'Mar'
+                WHEN 3 THEN 'Mié'
+                WHEN 4 THEN 'Jue'
+                WHEN 5 THEN 'Vie'
+                WHEN 6 THEN 'Sáb'
+            END AS dia_nombre,
+            COUNT(v.id) AS cantidad,
+            COALESCE(SUM(v.total), 0) AS total
+        FROM generate_series(
+            ((CURRENT_TIMESTAMP AT TIME ZONE 'America/Managua')::date - INTERVAL '6 days'),
+            (CURRENT_TIMESTAMP AT TIME ZONE 'America/Managua')::date,
+            INTERVAL '1 day'
+        ) AS d(dia)
+        LEFT JOIN ventas v
+            ON (v.fecha AT TIME ZONE 'UTC' AT TIME ZONE 'America/Managua')::date = d.dia
+        GROUP BY d.dia
+        ORDER BY d.dia
     """)
 
     mas_vendidos = fetch_all("""
@@ -219,9 +232,7 @@ def dashboard():
         "mas_vendidos": mas_vendidos,
         "actividad": actividad,
         "ventas_dias": ventas_7,
-
-        # Gráfica como antes: muestra fechas, no Lun/Mar/Mié
-        "chart_labels": [r["dia"] for r in ventas_7],
+        "chart_labels": [r["dia_nombre"] for r in ventas_7],
         "chart_values": [float(r["total"] or 0) for r in ventas_7],
     }
 
