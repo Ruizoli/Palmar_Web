@@ -149,7 +149,7 @@ def dashboard():
             COUNT(v.id) AS cantidad,
             COALESCE(SUM(v.total), 0) AS total
         FROM generate_series(
-            ((CURRENT_TIMESTAMP AT TIME ZONE 'America/Managua')::date - INTERVAL '6 days'),
+            ((CURRENT_TIMESTAMP AT TIME ZONE 'America/Managua')::date - INTERVAL '29 days'),
             (CURRENT_TIMESTAMP AT TIME ZONE 'America/Managua')::date,
             INTERVAL '1 day'
         ) AS d(dia)
