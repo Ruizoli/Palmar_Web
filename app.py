@@ -217,7 +217,18 @@ def dashboard():
         "mas_vendidos": mas_vendidos,
         "actividad": actividad,
         "ventas_dias": ventas_7,
-        "chart_labels": [r["dia"] for r in ventas_7],
+        "chart_labels": [
+        {
+            "Monday": "Lun",
+            "Tuesday": "Mar",
+            "Wednesday": "Mié",
+            "Thursday": "Jue",
+            "Friday": "Vie",
+            "Saturday": "Sáb",
+            "Sunday": "Dom"
+        }.get(datetime.strptime(r["dia"], "%Y-%m-%d").strftime("%A"), r["dia"])
+        for r in ventas_7
+    ],
         "chart_values": [float(r["total"] or 0) for r in ventas_7],
     }
 
