@@ -63,15 +63,25 @@ def login():
     if request.method == "POST":
         usuario = request.form.get("usuario", "").strip()
         password = request.form.get("password", "").strip()
-        user = fetch_one("SELECT id, usuario, rol FROM usuarios WHERE usuario=? AND pass=?", (usuario, password))
+
+        user = fetch_one(
+            "SELECT id, usuario, rol FROM usuarios WHERE usuario=? AND pass=?",
+            (usuario, password)
+        )
+
         if user:
-        session["usuario"] = user["usuario"]
-        session["rol"] = user["rol"]
+            session["usuario"] = user["usuario"]
+            session["rol"] = user["rol"]
 
-        registrar_auditoria("Inicio de sesión", f"El usuario {user['usuario']} entró al sistema")
+            registrar_auditoria(
+                "Inicio de sesión",
+                f"El usuario {user['usuario']} entró al sistema"
+            )
 
-        return redirect(url_for("dashboard"))
+            return redirect(url_for("dashboard"))
+
         flash("Usuario o contraseña incorrectos", "danger")
+
     return render_template("login.html")
 
 
