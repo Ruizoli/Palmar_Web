@@ -140,12 +140,10 @@ def dashboard():
             COUNT(*) AS cantidad,
             COALESCE(SUM(total), 0) AS total
         FROM ventas
-        WHERE (fecha AT TIME ZONE 'UTC' AT TIME ZONE 'America/Managua')::date >=
-            ((CURRENT_TIMESTAMP AT TIME ZONE 'America/Managua')::date - INTERVAL '6 days')
         GROUP BY (fecha AT TIME ZONE 'UTC' AT TIME ZONE 'America/Managua')::date
         ORDER BY (fecha AT TIME ZONE 'UTC' AT TIME ZONE 'America/Managua')::date
     """)
-
+    
     mas_vendidos = fetch_all("""
         SELECT p.nombre, SUM(d.cantidad) AS unidades
         FROM detalle_venta d
