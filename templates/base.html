@@ -75,10 +75,15 @@
         <i class="fa-solid fa-clipboard-list"></i>
         <span>Gestión Órdenes</span>
       </a>
+
+      <a class="side-link {{ 'active' if endpoint in ['reportes', 'reportes_ventas_excel', 'reportes_auditoria_excel'] else '' }}" href="{{ url_for('reportes') }}">
+        <i class="fa-solid fa-chart-column"></i>
+        <span>Reportes</span>
+      </a>
       {% endif %}
 
       <a class="side-link logout" id="btnLogout" href="{{ url_for('logout') }}">
-        <i class="fa-solid fa-xmark"></i>
+        <i class="fa-solid fa-right-from-bracket"></i>
         <span>Salir</span>
       </a>
 
