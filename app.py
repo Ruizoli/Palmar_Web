@@ -327,6 +327,49 @@ def eliminar_cliente(id):
     flash("Cliente eliminado", "success")
     return redirect(url_for("clientes"))
 
+@app.route("/productos")
+@login_required
+def productos():
+    q = request.args.get("q", "").strip()
+    params = []
+
+    sql = """
+        SELECT p.id, p.nombre, p.precio, p.stock, p.unidad, p.categoria_id,
+               COALESCE(c.nombre, 'Sin categoría') AS categoria,
+               (p.precio * p.stock) AS invertido
+        FROM productos p
+        LEFT JOIN categorias c ON p.categoria_id = c.id
+    """
+
+    if q:
+        q_limpio = q.lstrip("0") or "0"
+        sql += """
+            WHERE
+                UPPER(p.nombre) LIKE UPPER(?)
+                OR UPPER(c.nombre) LIKE UPPER(?)
+                OR UPPER(COALESCE(p.unidad, '')) LIKE UPPER(?)
+                OR CAST(p.id AS TEXT) LIKE ?
+                OR LPAD(CAST(p.id AS TEXT), 4, '0') LIKE ?
+        """
+        params = (
+            f"%{q}%",
+            f"%{q}%",
+            f"%{q}%",
+            f"%{q_limpio}%",
+            f"%{q}%"
+        )
+
+    sql += " ORDER BY p.nombre"
+    rows = fetch_all(sql, tuple(params))
+
+    resumen = {
+        "productos": len(rows),
+        "unidades": sum(int(r["stock"] or 0) for r in rows),
+        "invertido": sum(float(r["invertido"] or 0) for r in rows),
+    }
+
+    return render_template("productos.html", productos=rows, resumen=resumen, q=q)
+
 @app.route("/categorias", methods=["GET", "POST"])
 @login_required
 @admin_required
