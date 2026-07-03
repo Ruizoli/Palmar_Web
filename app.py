@@ -154,7 +154,7 @@ def dashboard():
             INTERVAL '1 day'
         ) AS d(dia)
         LEFT JOIN ventas v
-            ON (v.fecha AT TIME ZONE 'UTC' AT TIME ZONE 'America/Managua')::date = d.dia
+            ON v.fecha::date = d.dia
         GROUP BY d.dia
         ORDER BY d.dia
     """)
@@ -204,9 +204,9 @@ def dashboard():
 
         "ventas_mes": execute_scalar("""
             SELECT COUNT(*) FROM ventas
-            WHERE EXTRACT(MONTH FROM (fecha AT TIME ZONE 'UTC' AT TIME ZONE 'America/Managua')) =
+            WHERE EXTRACT(MONTH FROM fecha) =
                 EXTRACT(MONTH FROM (CURRENT_TIMESTAMP AT TIME ZONE 'America/Managua'))
-            AND EXTRACT(YEAR FROM (fecha AT TIME ZONE 'UTC' AT TIME ZONE 'America/Managua')) =
+            AND EXTRACT(YEAR FROM fecha) =
                 EXTRACT(YEAR FROM (CURRENT_TIMESTAMP AT TIME ZONE 'America/Managua'))
         """),
 
@@ -548,7 +548,7 @@ def ventas():
 
             cursor.execute("""
                 INSERT INTO ventas(fecha, total, empleado_id, cliente_id, observacion)
-                VALUES (CURRENT_TIMESTAMP, %s, %s, %s, %s)
+                VALUES (CURRENT_TIMESTAMP AT TIME ZONE 'America/Managua', %s, %s, %s, %s)
                 RETURNING id
             """, (total_con_iva, empleado_id, cliente_id, observacion))
 
@@ -973,7 +973,7 @@ def convertir_proforma(proforma_id):
 
         cursor.execute("""
             INSERT INTO ventas(fecha, total, empleado_id, cliente_id, observacion)
-            VALUES (CURRENT_TIMESTAMP, %s, %s, %s, %s)
+            VALUES (CURRENT_TIMESTAMP AT TIME ZONE 'America/Managua', %s, %s, %s, %s)
             RETURNING id
         """, (
             total,
