@@ -155,8 +155,6 @@ def dashboard():
         ) AS d(dia)
         LEFT JOIN ventas v
             ON v.fecha::date = d.dia
-        GROUP BY d.dia
-        ORDER BY d.dia
     """)
 
     mas_vendidos = fetch_all("""
@@ -204,18 +202,17 @@ def dashboard():
 
         "ventas_mes": execute_scalar("""
             SELECT COUNT(*) FROM ventas
-            WHERE EXTRACT(MONTH FROM fecha) =
-                EXTRACT(MONTH FROM (CURRENT_TIMESTAMP AT TIME ZONE 'America/Managua'))
-            AND EXTRACT(YEAR FROM fecha) =
-                EXTRACT(YEAR FROM (CURRENT_TIMESTAMP AT TIME ZONE 'America/Managua'))
-        """),
+        WHERE EXTRACT(MONTH FROM fecha) =
+            EXTRACT(MONTH FROM (CURRENT_TIMESTAMP AT TIME ZONE 'America/Managua'))
+        AND EXTRACT(YEAR FROM fecha) =
+            EXTRACT(YEAR FROM (CURRENT_TIMESTAMP AT TIME ZONE 'America/Managua'))
 
         "ingresos_mes": float(execute_scalar("""
             SELECT COALESCE(SUM(total), 0)
             FROM ventas
-            WHERE EXTRACT(MONTH FROM (fecha AT TIME ZONE 'UTC' AT TIME ZONE 'America/Managua')) =
+            EXTRACT(MONTH FROM fecha) =
                 EXTRACT(MONTH FROM (CURRENT_TIMESTAMP AT TIME ZONE 'America/Managua'))
-            AND EXTRACT(YEAR FROM (fecha AT TIME ZONE 'UTC' AT TIME ZONE 'America/Managua')) =
+            AND EXTRACT(YEAR FROM fecha) =
                 EXTRACT(YEAR FROM (CURRENT_TIMESTAMP AT TIME ZONE 'America/Managua'))
         """) or 0),
 
