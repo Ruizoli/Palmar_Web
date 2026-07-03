@@ -239,6 +239,93 @@ def dashboard():
 
     return render_template("dashboard.html", datos=datos)
 
+# =========================
+# CLIENTES
+# =========================
+@app.route("/clientes", methods=["GET", "POST"])
+@login_required
+def clientes():
+    if request.method == "POST":
+        nombre_cliente = request.form["nombre"].strip()
+
+        execute("""
+            INSERT INTO clientes(nombre, cedula, telefono, correo)
+            VALUES (?, ?, ?, ?)
+        """, (
+            nombre_cliente,
+            request.form.get("cedula"),
+            request.form.get("telefono"),
+            request.form.get("correo")
+        ))
+
+        registrar_auditoria(
+            "Cliente creado",
+            f"{session.get('usuario')} registró el cliente {nombre_cliente}"
+        )
+
+        flash("Cliente guardado correctamente", "success")
+        return redirect(url_for("clientes"))
+
+    q = request.args.get("q", "")
+
+    if q:
+        like = f"%{q}%"
+        rows = fetch_all("""
+            SELECT id, nombre, cedula, telefono, correo
+            FROM clientes
+            WHERE nombre LIKE ? OR cedula LIKE ? OR telefono LIKE ? OR correo LIKE ?
+            ORDER BY id DESC
+        """, (like, like, like, like))
+    else:
+        rows = fetch_all("""
+            SELECT id, nombre, cedula, telefono, correo
+            FROM clientes
+            ORDER BY id DESC
+        """)
+
+    return render_template("clientes.html", clientes=rows, q=q)
+
+
+@app.route("/clientes/<int:id>/editar", methods=["POST"])
+@login_required
+def editar_cliente(id):
+    nombre_cliente = request.form["nombre"].strip()
+
+    execute("""
+        UPDATE clientes
+        SET nombre=?, cedula=?, telefono=?, correo=?
+        WHERE id=?
+    """, (
+        nombre_cliente,
+        request.form.get("cedula"),
+        request.form.get("telefono"),
+        request.form.get("correo"),
+        id
+    ))
+
+    registrar_auditoria(
+        "Cliente editado",
+        f"{session.get('usuario')} editó el cliente ID {id} ({nombre_cliente})"
+    )
+
+    flash("Cliente actualizado", "success")
+    return redirect(url_for("clientes"))
+
+
+@app.route("/clientes/<int:id>/eliminar", methods=["POST"])
+@login_required
+def eliminar_cliente(id):
+    cliente = fetch_one("SELECT nombre FROM clientes WHERE id=?", (id,))
+
+    execute("DELETE FROM clientes WHERE id=?", (id,))
+
+    registrar_auditoria(
+        "Cliente eliminado",
+        f"{session.get('usuario')} eliminó el cliente ID {id} ({cliente['nombre'] if cliente else 'Sin nombre'})"
+    )
+
+    flash("Cliente eliminado", "success")
+    return redirect(url_for("clientes"))
 
 @app.route("/categorias", methods=["GET", "POST"])
 @login_required
