@@ -155,6 +155,8 @@ def dashboard():
         ) AS d(dia)
         LEFT JOIN ventas v
             ON v.fecha::date = d.dia
+        GROUP BY d.dia
+        ORDER BY d.dia
     """)
 
     mas_vendidos = fetch_all("""
@@ -201,16 +203,18 @@ def dashboard():
         "empleados": execute_scalar("SELECT COUNT(*) FROM empleados"),
 
         "ventas_mes": execute_scalar("""
-            SELECT COUNT(*) FROM ventas
-        WHERE EXTRACT(MONTH FROM fecha) =
-            EXTRACT(MONTH FROM (CURRENT_TIMESTAMP AT TIME ZONE 'America/Managua'))
-        AND EXTRACT(YEAR FROM fecha) =
-            EXTRACT(YEAR FROM (CURRENT_TIMESTAMP AT TIME ZONE 'America/Managua'))
+            SELECT COUNT(*) 
+            FROM ventas
+            WHERE EXTRACT(MONTH FROM fecha) =
+                EXTRACT(MONTH FROM (CURRENT_TIMESTAMP AT TIME ZONE 'America/Managua'))
+            AND EXTRACT(YEAR FROM fecha) =
+                EXTRACT(YEAR FROM (CURRENT_TIMESTAMP AT TIME ZONE 'America/Managua'))
+        """),
 
         "ingresos_mes": float(execute_scalar("""
             SELECT COALESCE(SUM(total), 0)
             FROM ventas
-            EXTRACT(MONTH FROM fecha) =
+            WHERE EXTRACT(MONTH FROM fecha) =
                 EXTRACT(MONTH FROM (CURRENT_TIMESTAMP AT TIME ZONE 'America/Managua'))
             AND EXTRACT(YEAR FROM fecha) =
                 EXTRACT(YEAR FROM (CURRENT_TIMESTAMP AT TIME ZONE 'America/Managua'))
@@ -234,110 +238,6 @@ def dashboard():
     }
 
     return render_template("dashboard.html", datos=datos)
-
-
-# =========================
-# CLIENTES
-# =========================
-@app.route("/clientes", methods=["GET", "POST"])
-@login_required
-def clientes():
-    if request.method == "POST":
-        nombre_cliente = request.form["nombre"].strip()
-        execute("INSERT INTO clientes(nombre, cedula, telefono, correo) VALUES (?, ?, ?, ?)", (
-            nombre_cliente, request.form.get("cedula"), request.form.get("telefono"), request.form.get("correo")
-        ))
-        registrar_auditoria(
-            "Cliente creado",
-            f"{session.get('usuario')} registró el cliente {nombre_cliente}"
-        )
-        flash("Cliente guardado correctamente", "success")
-        return redirect(url_for("clientes"))
-    q = request.args.get("q", "")
-    if q:
-        like = f"%{q}%"
-        rows = fetch_all("""
-            SELECT id, nombre, cedula, telefono, correo FROM clientes
-            WHERE nombre LIKE ? OR cedula LIKE ? OR telefono LIKE ? OR correo LIKE ?
-            ORDER BY id DESC
-        """, (like, like, like, like))
-    else:
-        rows = fetch_all("SELECT id, nombre, cedula, telefono, correo FROM clientes ORDER BY id DESC")
-    return render_template("clientes.html", clientes=rows, q=q)
-
-
-@app.route("/clientes/<int:id>/editar", methods=["POST"])
-@login_required
-def editar_cliente(id):
-    nombre_cliente = request.form["nombre"].strip()
-    execute("UPDATE clientes SET nombre=?, cedula=?, telefono=?, correo=? WHERE id=?", (
-        nombre_cliente, request.form.get("cedula"), request.form.get("telefono"), request.form.get("correo"), id
-    ))
-    registrar_auditoria(
-        "Cliente editado",
-        f"{session.get('usuario')} editó el cliente ID {id} ({nombre_cliente})"
-    )
-    flash("Cliente actualizado", "success")
-    return redirect(url_for("clientes"))
-
-
-@app.route("/clientes/<int:id>/eliminar", methods=["POST"])
-@login_required
-def eliminar_cliente(id):
-    cliente = fetch_one("SELECT nombre FROM clientes WHERE id=?", (id,))
-    execute("DELETE FROM clientes WHERE id=?", (id,))
-    registrar_auditoria(
-        "Cliente eliminado",
-        f"{session.get('usuario')} eliminó el cliente ID {id} ({cliente['nombre'] if cliente else 'Sin nombre'})"
-    )
-    flash("Cliente eliminado", "success")
-    return redirect(url_for("clientes"))
-
-
-# =========================
-# CATEGORÍAS Y PRODUCTOS
-# =========================
-@app.route("/productos")
-@login_required
-def productos():
-    q = request.args.get("q", "").strip()
-    print("BUSCANDO:", q)
-    params = []
-    sql = """
-        SELECT p.id, p.nombre, p.precio, p.stock, p.unidad, p.categoria_id,
-               COALESCE(c.nombre, 'Sin categoría') AS categoria,
-               (p.precio * p.stock) AS invertido
-        FROM productos p
-        LEFT JOIN categorias c ON p.categoria_id = c.id
-    """
-    if q:
-        q_limpio = q.lstrip("0") or "0"
-
-        sql += """
-            WHERE
-                UPPER(p.nombre) LIKE UPPER(?)
-                OR UPPER(c.nombre) LIKE UPPER(?)
-                OR UPPER(COALESCE(p.unidad, '')) LIKE UPPER(?)
-                OR CAST(p.id AS TEXT) LIKE ?
-                OR LPAD(CAST(p.id AS TEXT), 4, '0') LIKE ?
-        """
-
-        params = (
-            f"%{q}%",
-            f"%{q}%",
-            f"%{q}%",
-            f"%{q_limpio}%",
-            f"%{q}%"
-        )
-    sql += " ORDER BY p.nombre"
-    rows = fetch_all(sql, tuple(params))
-
-    resumen = {
-        "productos": len(rows),
-        "unidades": sum(int(r["stock"] or 0) for r in rows),
-        "invertido": sum(float(r["invertido"] or 0) for r in rows),
-    }
-    return render_template("productos.html", productos=rows, resumen=resumen, q=q)
 
 
 @app.route("/categorias", methods=["GET", "POST"])
