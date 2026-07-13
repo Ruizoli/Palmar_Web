@@ -876,9 +876,10 @@ def proforma_pdf(proforma_id):
     c.setFont("Helvetica-Bold", 8)
     c.drawString(50, y + 8, "Código")
     c.drawString(105, y + 8, "Descripción")
-    c.drawString(310, y + 8, "Cant")
-    c.drawString(360, y + 8, "Precio")
-    c.drawString(455, y + 8, "Total Neto")
+    c.drawString(290, y + 8, "Cant")       
+    c.drawString(330, y + 8, "Unidad")     
+    c.drawString(380, y + 8, "Precio")     
+    c.drawString(465, y + 8, "Total Neto")
 
     y -= 24
 
@@ -903,8 +904,9 @@ def proforma_pdf(proforma_id):
             y_linea -= 10
 
         unidad = d["unidad"] or "UND"
-        c.drawRightString(330, y, f'{d["cantidad"]} {unidad}')
-        c.drawRightString(420, y, f"C${float(d['precio']):,.2f}")
+        c.drawRightString(310, y, str(d["cantidad"])) # Número alineado a la derecha
+        c.drawString(330, y, unidad)                  # Texto alineado a la izquierda
+        c.drawRightString(430, y, f"C${float(d['precio']):,.2f}") # Ajustado X
         c.drawRightString(550, y, f"C${float(d['subtotal']):,.2f}")
 
         y -= max(24, len(lineas) * 12)
@@ -1133,6 +1135,9 @@ def factura_pdf(venta_id):
         flash("Factura no encontrada", "danger")
         return redirect(url_for("ventas"))
 
+    # Asegura que el directorio exista para evitar errores de escritura
+    os.makedirs("facturas_pdf", exist_ok=True)
+
     path = os.path.join("facturas_pdf", f"Factura_{venta_id}.pdf")
     c = canvas.Canvas(path, pagesize=letter)
 
@@ -1154,8 +1159,14 @@ def factura_pdf(venta_id):
     c.setFont("Helvetica-Bold", 11)
     c.drawRightString(550, 737, f"#FACT-{venta_id:04d}")
 
+    # Formateo seguro de fecha
+    try:
+        fecha = venta["fecha"].strftime("%d/%m/%Y")
+    except Exception:
+        fecha = str(venta["fecha"])[:10]
+
     c.setFont("Helvetica", 9)
-    c.drawRightString(550, 722, venta["fecha"].strftime("%d/%m/%Y"))
+    c.drawRightString(550, 722, fecha)
 
     cliente = venta["cliente_nombre"] or "CLIENTE GENERAL"
 
@@ -1167,9 +1178,10 @@ def factura_pdf(venta_id):
     c.setFillColorRGB(0, 0, 0)
     c.setFont("Helvetica-Bold", 8)
 
+    # Encabezados de datos de la parte superior
     c.drawString(50, y + 7, "Cliente")
-    c.drawString(300, y + 7, "Vendedor")
-    c.drawString(460, y + 7, "Fecha")
+    c.drawString(290, y + 7, "Vendedor")
+    c.drawString(470, y + 7, "Fecha")
 
     y -= 22
 
@@ -1177,9 +1189,10 @@ def factura_pdf(venta_id):
 
     c.setFont("Helvetica", 9)
 
+    # Impresión de los datos del cliente y vendedor
     c.drawString(50, y + 7, cliente)
-    c.drawString(300, y + 7, vendedor or "No registrado")
-    c.drawString(460, y + 7, venta["fecha"].strftime("%d/%m/%Y"))
+    c.drawString(290, y + 7, vendedor or "No registrado")
+    c.drawRightString(545, y + 7, fecha)
 
     y -= 45
 
@@ -1190,9 +1203,10 @@ def factura_pdf(venta_id):
     c.setFont("Helvetica-Bold", 8)
     c.drawString(50, y + 8, "Código")
     c.drawString(105, y + 8, "Descripción")
-    c.drawString(310, y + 8, "Cant")
-    c.drawString(360, y + 8, "Precio")
-    c.drawString(455, y + 8, "Total Neto")
+    c.drawString(290, y + 8, "Cant")
+    c.drawString(330, y + 8, "Unidad")     # Nueva columna Unidad alineada con la proforma
+    c.drawString(380, y + 8, "Precio")
+    c.drawString(465, y + 8, "Total Neto")
 
     y -= 24
 
@@ -1217,8 +1231,9 @@ def factura_pdf(venta_id):
             y_linea -= 10
 
         unidad = d["unidad"] or "UND"
-        c.drawRightString(330, y, f'{d["cantidad"]} {unidad}')
-        c.drawRightString(420, y, f"C${float(d['precio']):,.2f}")
+        c.drawRightString(310, y, str(d["cantidad"])) # Cantidad numérica a la derecha
+        c.drawString(330, y, unidad)                  # Texto de la unidad a la izquierda
+        c.drawRightString(430, y, f"C${float(d['precio']):,.2f}")
         c.drawRightString(550, y, f"C${float(d['subtotal']):,.2f}")
 
         y -= max(24, len(lineas) * 12)
