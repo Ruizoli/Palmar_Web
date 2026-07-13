@@ -647,13 +647,20 @@ def ventas():
 @app.route("/proformas/nueva", methods=["GET", "POST"])
 @login_required
 def nueva_proforma():
+    # MODIFICACIÓN: Eliminamos "WHERE stock > 0" para que traiga todo
     productos = fetch_all("""
         SELECT id, nombre, precio, stock, unidad
         FROM productos
-        WHERE stock > 0
         ORDER BY nombre
     """)
 
+    empleados = fetch_all("""
+        SELECT id, nombre, apellido
+        FROM empleados
+        WHERE estado='Activo'
+        ORDER BY nombre
+    """)
+    
     empleados = fetch_all("""
         SELECT id, nombre, apellido
         FROM empleados
